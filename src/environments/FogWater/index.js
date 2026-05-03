@@ -26,12 +26,24 @@ const black = new THREE.Color('black');
 const white = new THREE.Color('white');
 const bgColor = new THREE.Color(0x0a0a0a);
 
-function loadFile(filename) {
-  return new Promise((resolve, reject) => {
-    const loader = new THREE.FileLoader();
-    loader.load(filename, (data) => resolve(data));
-  });
-}
+import utilsShader from './shaders/utils.glsl?raw';
+import simVertexShader from './shaders/simulation/vertex.glsl?raw';
+import simDropFragShader from './shaders/simulation/drop_fragment.glsl?raw';
+import simNormalFragShader from './shaders/simulation/normal_fragment.glsl?raw';
+import simUpdateFragShader from './shaders/simulation/update_fragment.glsl?raw';
+import causticsVertexShader from './shaders/caustics/vertex.glsl?raw';
+import causticsFragmentShader from './shaders/caustics/fragment.glsl?raw';
+import waterVertexShader from './shaders/water/vertex.glsl?raw';
+import waterFragmentShader from './shaders/water/fragment.glsl?raw';
+import poolVertexShader from './shaders/pool/vertex.glsl?raw';
+import poolFragmentShader from './shaders/pool/fragment.glsl?raw';
+
+import imgXPos from './xpos.jpg';
+import imgXNeg from './xneg.jpg';
+import imgYPos from './ypos.jpg';
+import imgZPos from './zpos.jpg';
+import imgZNeg from './zneg.jpg';
+import imgTiles from './tiles.jpg';
 
 // --- FOG ENGINE CONFIGURATION ---
 const config = {
@@ -113,7 +125,7 @@ let camera, renderer, mainScene, controls, transformControl;
 let ballMesh, machineGroup;
 
 // Shader chunks
-loadFile('shaders/utils.glsl').then((utils) => {
+Promise.resolve(utilsShader).then((utils) => {
   THREE.ShaderChunk['utils'] = utils;
 
   // Create Renderer & Camera
@@ -314,13 +326,13 @@ loadFile('shaders/utils.glsl').then((utils) => {
   // --- Water Dependencies ---
   const cubetextureloader = new THREE.CubeTextureLoader();
   const textureCube = cubetextureloader.load([
-    'xpos.jpg', 'xneg.jpg',
-    'ypos.jpg', 'ypos.jpg',
-    'zpos.jpg', 'zneg.jpg',
+    imgXPos, imgXNeg,
+    imgYPos, imgYPos,
+    imgZPos, imgZNeg,
   ]);
 
   const textureloader = new THREE.TextureLoader();
-  const tiles = textureloader.load('tiles.jpg');
+  const tiles = textureloader.load(imgTiles);
 
   class WaterSimulation {
 
@@ -331,14 +343,7 @@ loadFile('shaders/utils.glsl').then((utils) => {
       this._textureB = new THREE.WebGLRenderTarget(256, 256, {type: THREE.FloatType});
       this.texture = this._textureA;
 
-      const shadersPromises = [
-        loadFile('shaders/simulation/vertex.glsl'),
-        loadFile('shaders/simulation/drop_fragment.glsl'),
-        loadFile('shaders/simulation/normal_fragment.glsl'),
-        loadFile('shaders/simulation/update_fragment.glsl'),
-      ];
-
-      this.loaded = Promise.all(shadersPromises)
+      this.loaded = Promise.resolve([simVertexShader, simDropFragShader, simNormalFragShader, simUpdateFragShader])
           .then(([vertexShader, dropFragmentShader, normalFragmentShader, updateFragmentShader]) => {
         const dropMaterial = new THREE.RawShaderMaterial({
           uniforms: {
@@ -409,11 +414,7 @@ loadFile('shaders/utils.glsl').then((utils) => {
       this._camera = new THREE.OrthographicCamera(0, 1, 1, 0, 0, 2000);
       this._geometry = lightFrontGeometry;
       this.texture = new THREE.WebGLRenderTarget(1024, 1024, {type: THREE.UNSIGNED_BYTE});
-      const shadersPromises = [
-        loadFile('shaders/caustics/vertex.glsl'),
-        loadFile('shaders/caustics/fragment.glsl')
-      ];
-      this.loaded = Promise.all(shadersPromises).then(([vertexShader, fragmentShader]) => {
+      this.loaded = Promise.resolve([causticsVertexShader, causticsFragmentShader]).then(([vertexShader, fragmentShader]) => {
         const material = new THREE.RawShaderMaterial({
           uniforms: {
               light: { value: light },
@@ -437,11 +438,7 @@ loadFile('shaders/utils.glsl').then((utils) => {
   class Water {
     constructor() {
       this.geometry = new THREE.PlaneBufferGeometry(2, 2, 200, 200);
-      const shadersPromises = [
-        loadFile('shaders/water/vertex.glsl'),
-        loadFile('shaders/water/fragment.glsl')
-      ];
-      this.loaded = Promise.all(shadersPromises).then(([vertexShader, fragmentShader]) => {
+      this.loaded = Promise.resolve([waterVertexShader, waterFragmentShader]).then(([vertexShader, fragmentShader]) => {
         this.material = new THREE.RawShaderMaterial({
           uniforms: {
               light: { value: light },
@@ -487,11 +484,7 @@ loadFile('shaders/utils.glsl').then((utils) => {
       ]);
       this._geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
       this._geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-      const shadersPromises = [
-        loadFile('shaders/pool/vertex.glsl'),
-        loadFile('shaders/pool/fragment.glsl')
-      ];
-      this.loaded = Promise.all(shadersPromises).then(([vertexShader, fragmentShader]) => {
+      this.loaded = Promise.resolve([poolVertexShader, poolFragmentShader]).then(([vertexShader, fragmentShader]) => {
         this._material = new THREE.RawShaderMaterial({
           uniforms: {
               light: { value: light },
