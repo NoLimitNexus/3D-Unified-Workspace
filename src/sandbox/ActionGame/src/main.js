@@ -485,6 +485,8 @@ function animate() {
     }
 
     let currentAnim = state.anim;
+    if (!state.gravityNormal) state.gravityNormal = new THREE.Vector3(0, 1, 0);
+
     if (state.isControlMode) {
         const moveZ = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
         const moveX = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
@@ -495,7 +497,33 @@ function animate() {
             currentAnim = isSprinting ? 'run' : 'walk';
             const speed = (isSprinting ? 0.22 : 0.1) * state.legs;
             const direction = new THREE.Vector3(moveX, 0, moveZ).normalize().applyQuaternion(character.quaternion);
-            character.position.addScaledVector(direction, speed);
+            
+            const nextPos = character.position.clone().addScaledVector(direction, speed);
+            let hitWall = false;
+            let hitNormal = null;
+
+            for (let b of destructibleBuildings) {
+                const hitResult = b.checkSweptHit(character.position, nextPos, 0.4, true);
+                if (hitResult.hit) {
+                    hitWall = true;
+                    hitNormal = hitResult.hitNormal;
+                    break;
+                }
+            }
+
+            if (hitWall && hitNormal) {
+                if (hitNormal.dot(state.gravityNormal) < 0.9) {
+                    state.gravityNormal.copy(hitNormal);
+                } else {
+                    const dot = direction.dot(hitNormal);
+                    if (dot < 0) {
+                        direction.sub(hitNormal.clone().multiplyScalar(dot)).normalize();
+                        character.position.addScaledVector(direction, speed);
+                    }
+                }
+            } else {
+                character.position.copy(nextPos);
+            }
         } else {
             currentAnim = 'idle';
         }
@@ -505,16 +533,17 @@ function animate() {
         
         state.currentCamSide += (state.camSide - state.currentCamSide) * 10 * delta;
 
-        
         bodyParts.camRig.position.set(0.6 * state.currentCamSide, 2.0, 0);
         bodyParts.camRig.rotation.x = state.camPitch;
         
         const localOffset = new THREE.Vector3(0, 0, -3.5 * state.camZoom);
         const worldPos = bodyParts.camRig.localToWorld(localOffset);
-        if (worldPos.y < 0.3) worldPos.y = 0.3;
+        // Prevent camera from clipping through floor when on ground
+        if (state.gravityNormal.y > 0.9 && worldPos.y < 0.3) worldPos.y = 0.3;
         camera.position.lerp(worldPos, 0.25);
         
         const lookTgt = bodyParts.camRig.localToWorld(new THREE.Vector3(0, 0, 100));
+        camera.up.lerp(state.gravityNormal, 0.1);
         camera.lookAt(lookTgt);
     } else {
         const hotbar = document.getElementById('hotbar');
@@ -534,11 +563,57 @@ function animate() {
         camera.lookAt(state._currentLookAt);
     }
 
-    if (typeof state.baseY === 'undefined') state.baseY = character.position.y;
-    const terrainY = getTerrainHeight(character.position.x, character.position.z);
-    state.baseY += (terrainY - state.baseY) * 0.15;
-    if (Math.abs(state.baseY - terrainY) < 0.01) state.baseY = terrainY;
-    character.position.y = state.baseY;
+    // Align character to gravity normal
+    const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(character.quaternion);
+    if (currentUp.dot(state.gravityNormal) < 0.999) {
+        const axis = new THREE.Vector3().crossVectors(currentUp, state.gravityNormal).normalize();
+        const angle = Math.acos(Math.max(-1, Math.min(1, currentUp.dot(state.gravityNormal))));
+        const q = new THREE.Quaternion().setFromAxisAngle(axis, angle * 0.2);
+        character.quaternion.premultiply(q);
+    }
+
+    let onWall = false;
+    if (state.gravityNormal.y < 0.9) {
+        const rayStart = character.position.clone().addScaledVector(state.gravityNormal, 0.6);
+        const rayEnd = character.position.clone().addScaledVector(state.gravityNormal, -0.6);
+        let hitRes = { hit: false };
+        for (let b of destructibleBuildings) {
+            const res = b.checkSweptHit(rayStart, rayEnd, 0.2, true);
+            if (res.hit) { hitRes = res; break; }
+        }
+        if (hitRes.hit && hitRes.hitBlockPos) {
+            character.position.copy(hitRes.hitBlockPos).addScaledVector(state.gravityNormal, 0.25);
+            onWall = true;
+        } else {
+            state.gravityNormal.set(0, 1, 0);
+        }
+    }
+
+    if (!onWall) {
+        const terrainY = getTerrainHeight(character.position.x, character.position.z);
+        if (typeof state.vY === 'undefined') state.vY = 0;
+        
+        if (state.wasOnWall) {
+            state.baseY = character.position.y;
+            state.vY = 0;
+        }
+
+        if (state.baseY > terrainY + 0.1) {
+            state.vY -= 20 * delta;
+            state.baseY += state.vY * delta;
+            if (state.baseY < terrainY) {
+                state.baseY = terrainY;
+                state.vY = 0;
+            }
+        } else {
+            state.vY = 0;
+            state.baseY += (terrainY - state.baseY) * 0.25;
+            if (Math.abs(state.baseY - terrainY) < 0.01) state.baseY = terrainY;
+        }
+        
+        character.position.y = state.baseY;
+    }
+    state.wasOnWall = onWall;
 
     if (state.charStyle !== 'blob') {
         let thighRot = 0;

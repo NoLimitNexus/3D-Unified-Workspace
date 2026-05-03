@@ -232,7 +232,20 @@ export class DestructibleBuilding {
                 this.checkStability();
             }
             
-            return { hit: true, hitPos: hitPos, dist: closestHitDist };
+            let hitNormal = new THREE.Vector3(0, 1, 0);
+            let hitBlockPos = null;
+            if (hitBlocks.length > 0) {
+                const hb = hitBlocks[0];
+                hitBlockPos = hb.pos;
+                // Normal is roughly opposite to the direction from hitPos to block center
+                const diff = hitPos.clone().sub(hb.pos);
+                const absX = Math.abs(diff.x), absY = Math.abs(diff.y), absZ = Math.abs(diff.z);
+                if (absX >= absY && absX >= absZ) hitNormal.set(Math.sign(diff.x), 0, 0);
+                else if (absY >= absX && absY >= absZ) hitNormal.set(0, Math.sign(diff.y), 0);
+                else hitNormal.set(0, 0, Math.sign(diff.z));
+            }
+
+            return { hit: true, hitPos: hitPos, dist: closestHitDist, hitNormal: hitNormal, hitBlockPos: hitBlockPos };
         }
         return { hit: false };
     }

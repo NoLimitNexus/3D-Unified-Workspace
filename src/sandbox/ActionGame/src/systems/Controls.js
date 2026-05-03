@@ -259,7 +259,7 @@ export function setupControls() {
                 wheelState.mouseY += e.movementY;
                 updateWheelHighlight();
             } else {
-                character.rotation.y -= e.movementX * 0.003;
+                character.rotateY(-e.movementX * 0.003);
                 state.camPitch += e.movementY * 0.003;
                 state.camPitch = Math.max(-1.0, Math.min(1.2, state.camPitch));
             }
@@ -271,7 +271,7 @@ export function setupControls() {
                 offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * 0.01);
                 state.uiCameraPos.copy(state.uiCameraLook).add(offset);
             } else {
-                character.rotation.y -= dx * 0.01;
+                character.rotateY(-dx * 0.01);
             }
         }
         prevX = e.clientX;
@@ -329,7 +329,12 @@ export function toggleCrouch() {
     state.isCrouching = !state.isCrouching;
 }
 
-export function triggerJump() { if(state.jumpTime < 0) state.jumpTime = 0; }
+export function triggerJump() { 
+    if(state.jumpTime < 0) {
+        state.jumpTime = 0;
+        if (state.gravityNormal) state.gravityNormal.set(0, 1, 0);
+    }
+}
 export function triggerSpell() { if(state.spellTime < 0 && !state.isDead) state.spellTime = 0; }
 
 // ─── INVENTORY SYSTEM ───
