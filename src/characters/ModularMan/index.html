@@ -186,6 +186,14 @@
             enemiesPaused: true
         };
 
+        const SKINS = {
+            default: { name: "Basic", color: '#ffdbac', accessories: [] },
+            ninja: { name: "Ninja", color: '#222222', accessories: ['headband'] },
+            cyborg: { name: "Cyborg", color: '#88aaff', accessories: ['visor'] },
+            construction: { name: "Worker", color: '#f97316', accessories: ['hardhat'] },
+            royal: { name: "Royal", color: '#eab308', accessories: ['crown'] }
+        };
+
         init();
         animate();
 
@@ -780,14 +788,6 @@
             const velocity = aimTgt.clone().sub(startPos).normalize().multiplyScalar(50); 
             state.tracers.push({ mesh: proj, v: velocity, life: 2.0, isMagic: true, magicType: magicType });
         }
-
-        const SKINS = {
-            default: { name: "Basic", color: '#ffdbac', accessories: [] },
-            ninja: { name: "Ninja", color: '#222222', accessories: ['headband'] },
-            cyborg: { name: "Cyborg", color: '#88aaff', accessories: ['visor'] },
-            construction: { name: "Worker", color: '#f97316', accessories: ['hardhat'] },
-            royal: { name: "Royal", color: '#eab308', accessories: ['crown'] }
-        };
 
         function applySkin(skinId) {
             const skin = SKINS[skinId] || SKINS.default;
