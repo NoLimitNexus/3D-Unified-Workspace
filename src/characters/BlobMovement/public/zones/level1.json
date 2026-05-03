@@ -1,0 +1,754 @@
+{
+  "name": "level1",
+  "objects": [
+    {
+      "type": "wall",
+      "x": 0,
+      "z": -150,
+      "width": 300,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 0,
+      "z": 150,
+      "width": 300,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -148,
+      "z": 0,
+      "width": 4,
+      "height": 10,
+      "depth": 296
+    },
+    {
+      "type": "wall",
+      "x": 148,
+      "z": 0,
+      "width": 4,
+      "height": 10,
+      "depth": 296
+    },
+    {
+      "type": "wall",
+      "x": -35,
+      "z": -45,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 42,
+      "z": -40,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 0,
+      "z": 0,
+      "width": 4,
+      "height": 10,
+      "depth": 80
+    },
+    {
+      "type": "wall",
+      "x": -106,
+      "z": -10,
+      "width": 80,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 40,
+      "z": 40,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "biomatter",
+      "x": 76,
+      "z": -142,
+      "scale": 1.5
+    },
+    {
+      "type": "biomatter",
+      "x": 40,
+      "z": -80,
+      "scale": 1.2
+    },
+    {
+      "type": "biomatter",
+      "x": 81,
+      "z": -25,
+      "scale": 2
+    },
+    {
+      "type": "biomatter",
+      "x": -80,
+      "z": 80,
+      "scale": 1.8
+    },
+    {
+      "type": "container",
+      "x": 69,
+      "z": -58
+    },
+    {
+      "type": "container",
+      "x": 80,
+      "z": 80
+    },
+    {
+      "type": "enemyMarker",
+      "x": 88.99146351895726,
+      "z": -21.960476908222773,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": 103.5,
+      "z": -82.22234064519013,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": 19.033953623588022,
+      "z": 59.070804496079276,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30,
+      "rotationY": 4.319689898685968
+    },
+    {
+      "type": "enemyMarker",
+      "x": 48.38360711920669,
+      "z": 64.59972518413767,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30,
+      "rotationY": 3.926990816987243
+    },
+    {
+      "type": "extraction",
+      "x": 0,
+      "z": 80,
+      "targetZone": "map_menu"
+    },
+    {
+      "type": "playerStart",
+      "x": -143,
+      "z": 146,
+      "rotationY": 8.835729338221297
+    },
+    {
+      "type": "wall",
+      "x": -1,
+      "z": 62,
+      "width": 40,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -47,
+      "z": 17,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -81,
+      "z": 62,
+      "width": 40,
+      "height": 5,
+      "depth": 2
+    },
+    {
+      "type": "wall",
+      "x": -67,
+      "z": 8,
+      "width": 40,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -41,
+      "z": 62,
+      "width": 40,
+      "height": 5,
+      "depth": 2
+    },
+    {
+      "type": "wall",
+      "x": -61,
+      "z": 73,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -90,
+      "z": 37,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -61,
+      "z": 93,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -100,
+      "z": 73,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -68,
+      "z": 35,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -23,
+      "z": 73,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -32,
+      "z": 84,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -11,
+      "z": 120,
+      "width": 3,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 54,
+      "z": 107,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -30,
+      "z": 120,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -21,
+      "z": 111,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 101,
+      "z": 112,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 94,
+      "z": 72,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 122,
+      "z": 37,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 64,
+      "z": 63,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 111,
+      "z": 47,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 65,
+      "z": 116,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 92,
+      "z": 121,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 74,
+      "z": 72,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": 58,
+      "z": 21,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "wall",
+      "x": 82,
+      "z": -40,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 100,
+      "z": -59,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "wall",
+      "x": 88,
+      "z": -129,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "wall",
+      "x": 129,
+      "z": -17,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 68,
+      "z": -111,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 36,
+      "z": -111,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 82,
+      "z": -81,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 42,
+      "z": -81,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 2,
+      "z": -81,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -1,
+      "z": -111,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -17,
+      "z": -63,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "wall",
+      "x": -53,
+      "z": -63,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "wall",
+      "x": -78,
+      "z": -64,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "wall",
+      "x": -97,
+      "z": -46,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -128,
+      "z": -46,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -129,
+      "z": -111,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -93,
+      "z": -111,
+      "width": 40,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -107,
+      "z": -68,
+      "width": 4,
+      "height": 10,
+      "depth": 40
+    },
+    {
+      "type": "biomatter",
+      "x": -88,
+      "z": -58,
+      "scale": 1.7629288906075886
+    },
+    {
+      "type": "biomatter",
+      "x": -128,
+      "z": -129,
+      "scale": 1.422219786202667
+    },
+    {
+      "type": "biomatter",
+      "x": -30,
+      "z": -132,
+      "scale": 0.6925124421159035
+    },
+    {
+      "type": "biomatter",
+      "x": 74,
+      "z": -135,
+      "scale": 0.6938994116471452
+    },
+    {
+      "type": "biomatter",
+      "x": -2,
+      "z": -130,
+      "scale": 0.5048039395073729
+    },
+    {
+      "type": "biomatter",
+      "x": 97,
+      "z": -102,
+      "scale": 1.2163111342001238
+    },
+    {
+      "type": "biomatter",
+      "x": 130,
+      "z": -98,
+      "scale": 1.2642056343116574
+    },
+    {
+      "type": "biomatter",
+      "x": 132,
+      "z": -35,
+      "scale": 1.2226455606476139
+    },
+    {
+      "type": "biomatter",
+      "x": 125,
+      "z": 14,
+      "scale": 1.3846533389026026
+    },
+    {
+      "type": "biomatter",
+      "x": 115,
+      "z": 73,
+      "scale": 0.579732582653804
+    },
+    {
+      "type": "biomatter",
+      "x": 92,
+      "z": 116,
+      "scale": 1.3864232291637997
+    },
+    {
+      "type": "biomatter",
+      "x": 46,
+      "z": 101,
+      "scale": 1.6321878999996036
+    },
+    {
+      "type": "biomatter",
+      "x": -19,
+      "z": 116,
+      "scale": 1.179463191357716
+    },
+    {
+      "type": "container",
+      "x": -54,
+      "z": 15
+    },
+    {
+      "type": "container",
+      "x": -33,
+      "z": -61
+    },
+    {
+      "type": "container",
+      "x": -127,
+      "z": -65
+    },
+    {
+      "type": "biomatter",
+      "x": -82,
+      "z": -99,
+      "scale": 0.7773901571769841
+    },
+    {
+      "type": "biomatter",
+      "x": -85,
+      "z": -137,
+      "scale": 1.315267518677514
+    },
+    {
+      "type": "enemyMarker",
+      "x": -75.16324353744933,
+      "z": 66.25300067356493,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": 62.392635240652744,
+      "z": -85.05497025685776,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": -136.38922115559976,
+      "z": 54.60079482295507,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": 103.81703590691536,
+      "z": -1.0896117073082043,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": -144.5,
+      "z": -85.761688815084,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": -62.42927543792418,
+      "z": -35.46996338455361,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": -103.08247381775202,
+      "z": 81.43051568423901,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "enemyMarker",
+      "x": -6.2458737989497575,
+      "z": 86.79408270259269,
+      "patrolMode": "roaming",
+      "patrolZoneDist": 30
+    },
+    {
+      "type": "wall",
+      "x": -119,
+      "z": 139,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -119,
+      "z": 119,
+      "width": 2,
+      "height": 5,
+      "depth": 20,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -128,
+      "z": 110,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "wall",
+      "x": -128,
+      "z": 110,
+      "width": 20,
+      "height": 5,
+      "depth": 2,
+      "rotationY": 1.5707963267948966
+    },
+    {
+      "type": "enemyMarker",
+      "x": -49.99941639330149,
+      "z": -41.5
+    },
+    {
+      "type": "enemyMarker",
+      "x": -104.18773862938512,
+      "z": -16.16649377596571
+    },
+    {
+      "type": "biomatter",
+      "x": 78,
+      "z": -117,
+      "scale": 1.349596059354643
+    },
+    {
+      "type": "biomatter",
+      "x": 81,
+      "z": -123,
+      "scale": 1.7328777190740827
+    },
+    {
+      "type": "biomatter",
+      "x": 72,
+      "z": -126,
+      "scale": 0.5232461397602916
+    },
+    {
+      "type": "container",
+      "x": -130,
+      "z": -119
+    },
+    {
+      "type": "container",
+      "x": -131,
+      "z": -138
+    }
+  ]
+}

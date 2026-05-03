@@ -1,0 +1,17 @@
+body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #050505; }
+canvas { display: block; width: 100vw; height: 100vh; }
+.slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem; }
+input[type=range] { width: 100%; height: 4px; border-radius: 2px; appearance: none; background: #374151; outline: none; }
+input[type=range]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #60a5fa; cursor: pointer; }
+.control-panel { backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(255,255,255,0.1); }
+.action-btn { background-color: #1f2937; padding: 6px 8px; border-radius: 4px; font-size: 10px; text-transform: uppercase; font-weight: bold; text-align: center; border: 1px solid transparent; cursor: pointer; color: white; transition: 0.2s; }
+.action-btn:hover { background-color: #2563eb; }
+.active-anim { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.5); }
+#crosshair { display: none; }
+.control-mode #crosshair { display: block; }
+#loading-screen { position: fixed; inset: 0; background: #0a0a0a; display: flex; align-items: center; justify-content: center; z-index: 100; color: white; transition: opacity 0.5s; }
+#weapon-wheel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; z-index: 60; pointer-events: none; }
+#weapon-wheel.active { display: block; }
+.wheel-item { position: absolute; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #9ca3af; border: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); transition: all 0.15s ease; letter-spacing: 0.5px; }
+.wheel-item.highlighted { color: white; border-color: #60a5fa; background: rgba(37, 99, 235, 0.6); box-shadow: 0 0 20px rgba(96, 165, 250, 0.4); transform: scale(1.15); }
+.wheel-item .wheel-icon { font-size: 18px; margin-bottom: 2px; }

@@ -1,0 +1,6 @@
+@echo off
+echo Starting Goop Dev Servers...
+echo 1. Starting local Express API (for Dev Tools saving levels)
+start cmd /k "node server.js"
+echo 2. Starting Vite Dev Server...
+npm run dev

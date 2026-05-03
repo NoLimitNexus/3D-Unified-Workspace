@@ -1,0 +1,42 @@
+﻿node : TypeError: Cannot 
+read properties of 
+undefined (reading 'lerp')
+At line:1 char:1
++ node frontend_test.js > 
+err.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (T  
+  ypeError: Cann...read   
+ ing 'lerp'):String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+    at file:///C:/Users/no
+lim/Desktop/desktop/3d-Act
+ion-Game-Collab/frontend_t
+est.js:58:26
+    at Array.forEach 
+(<anonymous>)
+    at syncWorld (file:///
+C:/Users/nolim/Desktop/des
+ktop/3d-Action-Game-Collab
+/frontend_test.js:40:16)
+    at file:///C:/Users/no
+lim/Desktop/desktop/3d-Act
+ion-Game-Collab/frontend_t
+est.js:88:5
+    at ModuleJob.run (node
+:internal/modules/esm/modu
+le_job:413:25)
+    at async onImport.trac
+ePromise.__proto__ (node:i
+nternal/modules/esm/loader
+:654:26)
+    at async asyncRunEntry
+PointWithESMLoader (node:i
+nternal/modules/run_main:1
+01:5)

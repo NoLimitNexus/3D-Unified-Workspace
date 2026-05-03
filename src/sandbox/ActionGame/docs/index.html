@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Character Base Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #050505; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem; }
+        input[type=range] { width: 100%; height: 4px; border-radius: 2px; appearance: none; background: #374151; outline: none; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #60a5fa; cursor: pointer; }
+        .control-panel { backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(255,255,255,0.1); }
+        .action-btn { background-color: #1f2937; padding: 6px 8px; border-radius: 4px; font-size: 10px; text-transform: uppercase; font-weight: bold; text-align: center; border: 1px solid transparent; cursor: pointer; color: white; transition: 0.2s; }
+        .action-btn:hover { background-color: #2563eb; }
+        .active-anim { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.5); }
+        #crosshair { display: none; }
+        .control-mode #crosshair { display: block; }
+        #loading-screen { position: fixed; inset: 0; background: #0a0a0a; display: flex; align-items: center; justify-content: center; z-index: 100; color: white; transition: opacity 0.5s; }
+        #weapon-wheel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; z-index: 60; pointer-events: none; }
+        #weapon-wheel.active { display: block; }
+        .wheel-item { position: absolute; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #9ca3af; border: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); transition: all 0.15s ease; letter-spacing: 0.5px; }
+        .wheel-item.highlighted { color: white; border-color: #60a5fa; background: rgba(37, 99, 235, 0.6); box-shadow: 0 0 20px rgba(96, 165, 250, 0.4); transform: scale(1.15); }
+        .wheel-item .wheel-icon { font-size: 18px; margin-bottom: 2px; }
+    </style>
+  <script type="module" crossorigin src="/3d-Action-Game-Collab/assets/index-xQ2AJrpF.js"></script>
+</head>
+<body class="preview-mode">
+    <div id="hotbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20 control-panel p-2 rounded-xl transition-opacity duration-300 opacity-0 pointer-events-none text-white">
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold ring-2 ring-blue-500" id="slot-0">HANDS</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-1">PISTOL</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-2">AXE</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-3">MAGIC</div>
+    </div>
+
+    <div id="weapon-wheel">
+        <div class="wheel-item" id="wheel-0" style="top: 0; left: 50%; transform: translateX(-50%);"><span class="wheel-icon">✊</span>HANDS</div>
+        <div class="wheel-item" id="wheel-1" style="top: 50%; right: 0; transform: translateY(-50%);"><span class="wheel-icon">🔫</span>PISTOL</div>
+        <div class="wheel-item" id="wheel-2" style="bottom: 0; left: 50%; transform: translateX(-50%);"><span class="wheel-icon">🪓</span>AXE</div>
+        <div class="wheel-item" id="wheel-3" style="top: 50%; left: 0; transform: translateY(-50%);"><span class="wheel-icon">✨</span>MAGIC</div>
+    </div>
+
+    <div id="loading-screen">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-xs uppercase tracking-widest text-gray-500">Initializing Rig...</p>
+        </div>
+    </div>
+
+    <div id="crosshair" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
+        <div class="w-6 h-6 border border-white/20 rounded-full flex items-center justify-center">
+            <div class="w-1 h-1 bg-white rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center transition-opacity duration-500">
+        <div class="bg-gray-900 p-8 rounded-2xl border border-blue-500/30 shadow-2xl w-full max-w-md text-center">
+            <h1 class="text-3xl font-black italic text-blue-400 mb-2">NEON NEXUS</h1>
+            <p class="text-gray-400 text-sm mb-8 uppercase tracking-widest font-bold">Protocol Initialization</p>
+            
+            <input type="text" id="username-input" placeholder="ENTER OPERATOR ID" 
+                class="w-full bg-black/50 border border-blue-500/20 p-4 rounded-xl text-white text-center font-bold tracking-widest outline-none focus:border-blue-500/60 transition-all mb-4 uppercase">
+            
+            <button id="login-btn" 
+                class="w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-4 rounded-xl uppercase tracking-tighter transition-all transform active:scale-95 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                Initialize Link
+            </button>
+            <p id="login-status" class="mt-4 text-xs text-blue-500/60 animate-pulse hidden uppercase font-bold tracking-tighter">Connecting to Neural Net...</p>
+        </div>
+    </div>
+
+    <div id="ui" class="absolute top-4 left-4 z-20 w-72 max-h-[95vh] overflow-y-auto control-panel p-6 rounded-2xl shadow-2xl text-white transition-opacity duration-300">
+        <div class="flex flex-col gap-3 mb-6 border-b border-gray-700 pb-4">
+            <h1 class="text-xl font-black tracking-tight italic text-blue-400">CHARACTER BASE</h1>
+            <div class="flex gap-2 w-full text-[10px] font-bold uppercase tracking-wider mb-2" id="ui-tabs">
+                <button id="nav-character" class="flex-1 bg-blue-600 text-white py-1 rounded transition-colors">Char</button>
+                <button id="nav-spells" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-400 py-1 rounded transition-colors">Spells</button>
+                <button id="nav-fog" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-400 py-1 rounded transition-colors">Fog</button>
+            </div>
+            <button id="mode-toggle" class="w-full bg-blue-500 hover:bg-blue-400 text-[11px] py-2 rounded-lg font-black uppercase tracking-widest transition-all">Enter Control Mode</button>
+        </div>
+        
+        <div id="creator-controls" class="space-y-5">
+            <div id="tab-character" class="space-y-5">
+            <div>
+                <label class="flex items-center justify-between bg-gray-800/50 p-2 rounded border border-white/5 cursor-pointer hover:bg-gray-800 transition-colors">
+                    <span class="slider-label font-bold text-gray-400 text-[10px] m-0">SUSPEND ENEMIES</span>
+                    <div class="relative flex items-center">
+                        <input type="checkbox" id="disable-enemies" class="peer sr-only" checked>
+                        <div class="block w-8 h-4 bg-gray-900 rounded-full border border-gray-600 peer-checked:bg-blue-500 transition-all"></div>
+                        <div class="absolute left-1 w-2 h-2 bg-gray-300 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-white"></div>
+                    </div>
+                </label>
+            </div>
+
+            </div> <!-- end tab-character initial part -->
+
+            <div id="tab-spells" class="hidden space-y-4">
+                <h2 class="text-xs font-bold text-blue-400 mb-2 uppercase">Spells & Effects Visuals</h2>
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">MAGIC: LEFT HAND</span>
+                    <select id="magic-left" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                        <option value="none">None</option>
+                        <option value="fire" selected>Fire</option>
+                        <option value="ice">Ice</option>
+                        <option value="arcane">Arcane</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">MAGIC: RIGHT HAND</span>
+                    <select id="magic-right" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                        <option value="none">None</option>
+                        <option value="ice" selected>Ice</option>
+                        <option value="fire">Fire</option>
+                        <option value="arcane">Arcane</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">TEST SPELL VISUAL</span>
+                    <button id="test-spell-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] py-1 rounded mt-1 font-bold uppercase transition-colors">Cast Spell Effect</button>
+                </div>
+                <!-- Sliders for spell configs will go here -->
+                <div id="spell-controls-container" class="space-y-3 pt-2"></div>
+            </div>
+
+            <div id="tab-fog" class="hidden space-y-4">
+                <h2 class="text-xs font-bold text-blue-400 mb-2 uppercase">Fog Machine Controls</h2>
+                <div id="fog-controls-container" class="space-y-3">
+                    <!-- Sliders will be injected here via JS -->
+                </div>
+            </div>
+
+            <!-- Actually let's put Graphics & Animations back in Character tab -->
+            <script>
+                // Need a container for graphics and animations under character tab
+            </script>
+        </div>
+        <div id="graphics-animations-container" class="pt-4 border-t border-gray-800 space-y-4 hidden-outside-code">
+            <h2 class="text-xs font-bold text-blue-400 mb-2 uppercase">Graphics & Animations</h2>
+            <div>
+                <span class="slider-label font-bold text-gray-400 text-[10px]">GRAPHICS QUALITY</span>
+                <select id="graphics-quality" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            <div>
+                <span class="slider-label font-bold text-gray-400 text-[10px]">TEST ANIMATION</span>
+                <div class="flex gap-2 mt-1">
+                    <button id="test-anim-attack" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-[10px] py-1 rounded font-bold uppercase transition-colors">Attack</button>
+                    <button id="test-anim-jump" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-[10px] py-1 rounded font-bold uppercase transition-colors">Jump</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.getElementById('tab-character').appendChild(document.getElementById('graphics-animations-container'));
+        </script>
+
+        <div id="control-hint" class="hidden space-y-2 text-[11px] text-gray-400 bg-black/40 p-4 rounded-xl border border-white/5 mt-4">
+            <p class="flex justify-between"><b class="text-blue-400">WASD</b> <span>Move</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">SHIFT</b> <span>Sprint</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">SPACE</b> <span>Jump</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">R</b> <span>Respawn</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">C</b> <span>Crouch</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">CLICK</b> <span>Attack</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">F</b> <span>Spell</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">X</b> <span>Switch Shoulder</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">HOLD Q</b> <span>Weapon Wheel</span></p>
+            <div class="pt-3 text-[9px] text-center opacity-50 uppercase tracking-widest font-bold">Press ESC to Exit Control Mode</div>
+        </div>
+    </div>
+
+</body>
+</html>

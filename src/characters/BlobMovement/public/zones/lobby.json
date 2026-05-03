@@ -1,0 +1,43 @@
+{
+  "name": "lobby",
+  "objects": [
+    {
+      "type": "wall",
+      "x": 0,
+      "z": -100,
+      "width": 200,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": 0,
+      "z": 100,
+      "width": 200,
+      "height": 10,
+      "depth": 4
+    },
+    {
+      "type": "wall",
+      "x": -98,
+      "z": -2,
+      "width": 4,
+      "height": 10,
+      "depth": 200
+    },
+    {
+      "type": "wall",
+      "x": 98,
+      "z": -2,
+      "width": 4,
+      "height": 10,
+      "depth": 200
+    },
+    {
+      "type": "extraction",
+      "x": 0,
+      "z": -50,
+      "targetZone": "map_menu"
+    }
+  ]
+}

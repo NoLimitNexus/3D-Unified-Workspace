@@ -1,0 +1,10 @@
+node_modules
+.env
+.npm
+*.bak
+server/target/
+server/game_server/players.db
+ws_test.js
+frontend_test.js
+cargo_*.txt
+server/target/
