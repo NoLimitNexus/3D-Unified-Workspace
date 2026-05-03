@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fog Machine Prototype</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a0a;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #e5e5e5;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(20, 20, 20, 0.85);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .control-group {
+            margin-bottom: 12px;
+        }
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #555;
+        }
+        .info-text {
+            font-size: 0.75rem;
+            color: #777;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-panel">
+        <h2>Fog Controls</h2>
+        
+        <div id="controls-container"></div>
+
+        <div class="info-text">
+            * Drag mimics air resistance causing the mist to billow and slow down.<br>
+            * Buoyancy controls if the fog sinks or floats.<br>
+            * Left-click and drag to rotate camera.<br>
+            * Use the 3D axes arrows to move the testing wall.
+        </div>
+    </div>
+
+    <!-- Load Three.js and Controls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+
+    <script>
+        // --- CONFIGURATION & STATE ---
+        const config = {
+            sprayRate: { value: 3, min: 1, max: 10, step: 1, label: "Emission Rate" },
+            forwardSpeed: { value: 0.4, min: 0.1, max: 1.0, step: 0.01, label: "Exit Velocity" },
+            spread: { value: 0.08, min: 0.01, max: 0.3, step: 0.01, label: "Nozzle Spread" },
+            drag: { value: 0.98, min: 0.85, max: 0.99, step: 0.01, label: "Air Resistance (Drag)" },
+            buoyancy: { value: -0.002, min: -0.02, max: 0.02, step: 0.001, label: "Buoyancy / Gravity" },
+            startSize: { value: 1.5, min: 0.5, max: 5.0, step: 0.1, label: "Start Size" },
+            endSize: { value: 12.0, min: 5.0, max: 30.0, step: 0.5, label: "End Size" },
+            lifespan: { value: 300, min: 50, max: 300, step: 10, label: "Particle Life" }
+        };
+
+        // --- UI GENERATION ---
+        const controlsContainer = document.getElementById('controls-container');
+        for (const [key, settings] of Object.entries(config)) {
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            
+            const header = document.createElement('div');
+            header.className = 'control-header';
+            
+            const label = document.createElement('span');
+            label.innerText = settings.label;
+            
+            const valueDisplay = document.createElement('span');
+            valueDisplay.innerText = settings.value;
+            valueDisplay.id = `val-${key}`;
+            
+            header.appendChild(label);
+            header.appendChild(valueDisplay);
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = settings.min;
+            slider.max = settings.max;
+            slider.step = settings.step;
+            slider.value = settings.value;
+            
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                config[key].value = val;
+                valueDisplay.innerText = val.toFixed(settings.step.toString().split('.')[1]?.length || 0);
+            });
+            
+            group.appendChild(header);
+            group.appendChild(slider);
+            controlsContainer.appendChild(group);
+        }
+
+        // --- THREE.JS SETUP ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(-15, 8, 15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.target.set(0, 2, 5);
+
+        // Environment Details
+        const grid = new THREE.GridHelper(50, 50, 0x333333, 0x222222);
+        scene.add(grid);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // --- WALL SETUP ---
+        const wallGeo = new THREE.BoxGeometry(10, 10, 1);
+        const wallMat = new THREE.MeshStandardMaterial({ 
+            color: 0x4488ff, 
+            roughness: 0.6, 
+            transparent: true, 
+            opacity: 0.3,
+            depthWrite: false
+        });
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.set(5, 5, 8); // Offset by 5 so the left edge is at x=0
+        scene.add(wall);
+
+        // Transform Controls for the wall
+        const transformControl = new THREE.TransformControls(camera, renderer.domElement);
+        transformControl.addEventListener('dragging-changed', function (event) {
+            controls.enabled = !event.value;
+        });
+        transformControl.attach(wall);
+        scene.add(transformControl);
+
+        const wallBox = new THREE.Box3();
+
+        // --- FOG MACHINE MESH ---
+        const machineGroup = new THREE.Group();
+
+        // Main chassis
+        const chassisMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, metalness: 0.5 });
+        const chassisGeo = new THREE.BoxGeometry(3.2, 1.8, 4.2);
+        const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+        chassis.position.y = 1.0;
+        machineGroup.add(chassis);
+
+        // Side panels
+        const panelMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.4, metalness: 0.8 });
+        const panelGeo = new THREE.BoxGeometry(3.4, 1.2, 3.0);
+        const panel = new THREE.Mesh(panelGeo, panelMat);
+        panel.position.y = 1.0;
+        machineGroup.add(panel);
+
+        // Top vent / grate
+        const grillMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.1 });
+        const grillGeo = new THREE.BoxGeometry(2.0, 1.9, 2.0);
+        const grill = new THREE.Mesh(grillGeo, grillMat);
+        grill.position.set(0, 1.0, -0.5);
+        machineGroup.add(grill);
+
+        // Fog Fluid Tank
+        const tankMat = new THREE.MeshStandardMaterial({ color: 0x2288ff, roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.6 });
+        const tankGeo = new THREE.CylinderGeometry(0.8, 0.8, 1.5, 32);
+        const tank = new THREE.Mesh(tankGeo, tankMat);
+        tank.rotation.z = Math.PI / 2;
+        tank.position.set(0, 2.2, -0.5);
+        machineGroup.add(tank);
+        
+        // Tank Caps
+        const capMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5, metalness: 0.8 });
+        const leftCap = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.2, 32), capMat);
+        leftCap.rotation.z = Math.PI / 2;
+        leftCap.position.set(-0.75, 2.2, -0.5);
+        machineGroup.add(leftCap);
+        const rightCap = leftCap.clone();
+        rightCap.position.set(0.75, 2.2, -0.5);
+        machineGroup.add(rightCap);
+
+        // Nozzle Base
+        const nozzleBaseGeo = new THREE.CylinderGeometry(0.8, 0.9, 0.6, 32);
+        const nozzleBase = new THREE.Mesh(nozzleBaseGeo, capMat);
+        nozzleBase.rotation.x = Math.PI / 2;
+        nozzleBase.position.set(0, 1.0, 2.2);
+        machineGroup.add(nozzleBase);
+
+        // Nozzle Extrusion
+        const nozzleGeo = new THREE.CylinderGeometry(0.4, 0.6, 1.2, 32);
+        const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
+        const nozzle = new THREE.Mesh(nozzleGeo, nozzleMat);
+        nozzle.rotation.x = Math.PI / 2;
+        nozzle.position.set(0, 1.0, 2.8);
+        machineGroup.add(nozzle);
+
+        // Nozzle Glowing LED Ring
+        const ringGeo = new THREE.TorusGeometry(0.42, 0.05, 16, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.set(0, 1.0, 3.35);
+        machineGroup.add(ring);
+
+        // Feet
+        const footGeo = new THREE.CylinderGeometry(0.3, 0.2, 0.2, 16);
+        const footMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.9 });
+        [[-1.3, 0.1, 1.7], [1.3, 0.1, 1.7], [-1.3, 0.1, -1.7], [1.3, 0.1, -1.7]].forEach(pos => {
+            const foot = new THREE.Mesh(footGeo, footMat);
+            foot.position.set(...pos);
+            machineGroup.add(foot);
+        });
+
+        scene.add(machineGroup);
+
+        // --- PARTICLE SYSTEM (FOG) ---
+        // 1. Generate programmatic soft radial texture for particles
+        function createFogTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const maxParticles = 3000;
+        let spawnIndex = 0;
+        const particlesData = []; // CPU physics data
+
+        // Buffers for GPU
+        const positions = new Float32Array(maxParticles * 3);
+        const sizes = new Float32Array(maxParticles);
+        const opacities = new Float32Array(maxParticles);
+
+        // Initialize particle data structures
+        for (let i = 0; i < maxParticles; i++) {
+            particlesData.push({
+                active: false,
+                life: 0,
+                maxLife: 0,
+                velocity: new THREE.Vector3(),
+                baseOpacity: 0
+            });
+            sizes[i] = 0;
+            opacities[i] = 0;
+            positions[i * 3] = 10000; // hide offscreen initially
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('opacity', new THREE.BufferAttribute(opacities, 1));
+
+        // Custom Shader to handle per-particle size and opacity
+        const vertexShader = `
+            attribute float size;
+            attribute float opacity;
+            varying float vOpacity;
+            void main() {
+                vOpacity = opacity;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z); // Scale by distance
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+
+        const fragmentShader = `
+            uniform sampler2D pointTexture;
+            uniform vec3 color;
+            varying float vOpacity;
+            void main() {
+                vec4 texColor = texture2D(pointTexture, gl_PointCoord);
+                gl_FragColor = vec4(color * texColor.xyz, texColor.w * vOpacity);
+            }
+        `;
+
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                pointTexture: { value: createFogTexture() },
+                color: { value: new THREE.Color(0xdddddd) }
+            },
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.NormalBlending
+        });
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        // --- ANIMATION LOOP ---
+        const nozzlePosition = new THREE.Vector3(0, 1, 3.4); // Exact exit point
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Update wall bounding box for physics collision
+            wallBox.setFromObject(wall);
+
+            // 1. Spawn new particles
+            for (let i = 0; i < config.sprayRate.value; i++) {
+                const pData = particlesData[spawnIndex];
+                
+                // Initialize physics data
+                pData.active = true;
+                pData.life = 0;
+                pData.maxLife = config.lifespan.value * (0.8 + Math.random() * 0.4); // slightly randomize lifespan
+                
+                // Set initial velocity based on config
+                pData.velocity.set(
+                    (Math.random() - 0.5) * config.spread.value,
+                    (Math.random() - 0.5) * config.spread.value,
+                    config.forwardSpeed.value * (0.8 + Math.random() * 0.4)
+                );
+
+                // Add base rotation matrix to aim spray along Z axis correctly if machine rotates
+                pData.velocity.applyEuler(machineGroup.rotation);
+
+                // Set initial position at nozzle
+                positions[spawnIndex * 3] = nozzlePosition.x;
+                positions[spawnIndex * 3 + 1] = nozzlePosition.y;
+                positions[spawnIndex * 3 + 2] = nozzlePosition.z;
+
+                // Randomize base opacity slightly for texture variance
+                pData.baseOpacity = 0.3 + Math.random() * 0.4;
+
+                spawnIndex = (spawnIndex + 1) % maxParticles;
+            }
+
+            // 2. Update physics for all active particles
+            for (let i = 0; i < maxParticles; i++) {
+                const pData = particlesData[i];
+                if (!pData.active) continue;
+
+                pData.life++;
+                const lifeProgress = pData.life / pData.maxLife;
+
+                if (lifeProgress >= 1.0) {
+                    pData.active = false;
+                    opacities[i] = 0;
+                    positions[i * 3] = 10000; // Move offscreen
+                    continue;
+                }
+
+                // Apply physics
+                // Drag: velocity decays over time mimicking air resistance
+                pData.velocity.multiplyScalar(config.drag.value);
+                
+                // Buoyancy/Gravity
+                pData.velocity.y += config.buoyancy.value;
+
+                // Tentative next position
+                let nextX = positions[i * 3] + pData.velocity.x;
+                let nextY = positions[i * 3 + 1] + pData.velocity.y;
+                let nextZ = positions[i * 3 + 2] + pData.velocity.z;
+
+                // Particle size impacts collision bounding ideally, but we'll use slightly larger box for simpler collision
+                const pBounds = sizes[i] * 0.2; // approx radius
+                
+                // AABB Collision with Wall
+                if (nextX + pBounds >= wallBox.min.x && nextX - pBounds <= wallBox.max.x &&
+                    nextY + pBounds >= wallBox.min.y && nextY - pBounds <= wallBox.max.y &&
+                    nextZ + pBounds >= wallBox.min.z && nextZ - pBounds <= wallBox.max.z) {
+                    
+                    // Dampen velocity heavily upon impact
+                    pData.velocity.multiplyScalar(0.2);
+                    
+                    // Add some spread along the wall surface (simulate gas spreading in 2D plane)
+                    pData.velocity.x += (Math.random() - 0.5) * 0.05 * config.forwardSpeed.value;
+                    pData.velocity.y += (Math.random() - 0.5) * 0.05 * config.forwardSpeed.value;
+
+                    // Determine which face was hit to bounce off
+                    const prevX = positions[i * 3];
+                    const prevY = positions[i * 3 + 1];
+                    const prevZ = positions[i * 3 + 2];
+
+                    if (prevZ + pBounds < wallBox.min.z || prevZ - pBounds > wallBox.max.z) {
+                        pData.velocity.z *= -0.2; // slight bounce
+                        nextZ = positions[i * 3 + 2] + pData.velocity.z;
+                    } else if (prevX + pBounds < wallBox.min.x || prevX - pBounds > wallBox.max.x) {
+                        pData.velocity.x *= -0.2;
+                        nextX = positions[i * 3] + pData.velocity.x;
+                    } else if (prevY + pBounds < wallBox.min.y || prevY - pBounds > wallBox.max.y) {
+                        pData.velocity.y *= -0.2;
+                        nextY = positions[i * 3 + 1] + pData.velocity.y;
+                    }
+                }
+
+                // Update actual position
+                positions[i * 3] = nextX;
+                positions[i * 3 + 1] = nextY;
+                positions[i * 3 + 2] = nextZ;
+
+                // Update visuals (Size & Opacity based on life progress)
+                // Linear interpolation for size: expands over time
+                sizes[i] = config.startSize.value + (config.endSize.value - config.startSize.value) * lifeProgress;
+                
+                // Opacity fades out. We use a curve (1.0 - progress) to keep it visible initially then fade
+                // Use power for a smoother fade curve
+                const fade = Math.pow(1.0 - lifeProgress, 1.5);
+                opacities[i] = pData.baseOpacity * fade;
+            }
+
+            // Flag buffers for GPU update
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.size.needsUpdate = true;
+            geometry.attributes.opacity.needsUpdate = true;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start execution
+        window.onload = animate;
+
+    </script>
+</body>
+</html>

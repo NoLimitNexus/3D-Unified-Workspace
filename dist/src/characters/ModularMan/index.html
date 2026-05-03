@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Character Base Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #050505; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem; }
+        input[type=range] { width: 100%; height: 4px; border-radius: 2px; appearance: none; background: #374151; outline: none; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #60a5fa; cursor: pointer; }
+        .control-panel { backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(255,255,255,0.1); }
+        .action-btn { background-color: #1f2937; padding: 6px 8px; border-radius: 4px; font-size: 10px; text-transform: uppercase; font-weight: bold; text-align: center; border: 1px solid transparent; cursor: pointer; color: white; transition: 0.2s; }
+        .action-btn:hover { background-color: #2563eb; }
+        .active-anim { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.5); }
+        #crosshair { display: none; }
+        .control-mode #crosshair { display: block; }
+        #loading-screen { position: fixed; inset: 0; background: #0a0a0a; display: flex; align-items: center; justify-content: center; z-index: 100; color: white; transition: opacity 0.5s; }
+        #weapon-wheel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; z-index: 60; pointer-events: none; }
+        #weapon-wheel.active { display: block; }
+        .wheel-item { position: absolute; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #9ca3af; border: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); transition: all 0.15s ease; letter-spacing: 0.5px; }
+        .wheel-item.highlighted { color: white; border-color: #60a5fa; background: rgba(37, 99, 235, 0.6); box-shadow: 0 0 20px rgba(96, 165, 250, 0.4); transform: scale(1.15); }
+        .wheel-item .wheel-icon { font-size: 18px; margin-bottom: 2px; }
+    </style>
+  <script type="module" crossorigin src="../../../assets/modularMan-D577lfqO.js"></script>
+  <link rel="modulepreload" crossorigin href="../../../assets/modulepreload-polyfill-Da00irRU.js">
+</head>
+<body class="preview-mode">
+    <div id="hotbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20 control-panel p-2 rounded-xl transition-opacity duration-300 opacity-0 pointer-events-none text-white">
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold ring-2 ring-blue-500" id="slot-0">HANDS</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-1">PISTOL</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-2">AXE</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-3">MAGIC</div>
+    </div>
+
+    <div id="weapon-wheel">
+        <div class="wheel-item" id="wheel-0" style="top: 0; left: 50%; transform: translateX(-50%);"><span class="wheel-icon">✊</span>HANDS</div>
+        <div class="wheel-item" id="wheel-1" style="top: 50%; right: 0; transform: translateY(-50%);"><span class="wheel-icon">🔫</span>PISTOL</div>
+        <div class="wheel-item" id="wheel-2" style="bottom: 0; left: 50%; transform: translateX(-50%);"><span class="wheel-icon">🪓</span>AXE</div>
+        <div class="wheel-item" id="wheel-3" style="top: 50%; left: 0; transform: translateY(-50%);"><span class="wheel-icon">✨</span>MAGIC</div>
+    </div>
+
+    <div id="loading-screen">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-xs uppercase tracking-widest text-gray-500">Initializing Rig...</p>
+        </div>
+    </div>
+
+    <div id="crosshair" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
+        <div class="w-6 h-6 border border-white/20 rounded-full flex items-center justify-center">
+            <div class="w-1 h-1 bg-white rounded-full"></div>
+        </div>
+    </div>
+
+    <div id="ui" class="absolute top-4 left-4 z-20 w-72 max-h-[95vh] overflow-y-auto control-panel p-6 rounded-2xl shadow-2xl text-white transition-opacity duration-300">
+        <div class="flex flex-col gap-3 mb-6 border-b border-gray-700 pb-4">
+            <h1 class="text-xl font-black tracking-tight italic text-blue-400">CHARACTER BASE</h1>
+            <button id="mode-toggle" class="w-full bg-blue-500 hover:bg-blue-400 text-[11px] py-2 rounded-lg font-black uppercase tracking-widest transition-all">Enter Control Mode</button>
+        </div>
+        
+        <div id="creator-controls" class="space-y-5">
+            <div>
+                <span class="slider-label font-bold text-gray-400">PREVIEW STATE</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-idle" class="action-btn active-anim">IDLE</button>
+                    <button id="btn-walk" class="action-btn">WALK</button>
+                    <button id="btn-run" class="action-btn">RUN</button>
+                </div>
+            </div>
+
+            <div>
+                <span class="slider-label font-bold text-gray-400">QUICK ACTIONS</span>
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <button id="btn-jump" class="action-btn bg-orange-700/50 hover:bg-orange-600">JUMP</button>
+                    <button id="btn-punch" class="action-btn">PUNCH</button>
+                    <button id="btn-crouch" class="action-btn">CROUCH</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-spell" class="action-btn bg-purple-700/50 hover:bg-purple-600">SPELL</button>
+                    <button id="btn-die" class="action-btn bg-red-700/50 hover:bg-red-600">DIE/RESPAWN</button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-gray-800 space-y-4">
+                <div>
+                    <div class="slider-label"><span>HEIGHT</span><span id="height-val">1.0</span></div>
+                    <input type="range" id="height" min="0.8" max="1.2" step="0.01" value="1">
+                </div>
+                <div>
+                    <div class="slider-label"><span>SHOULDERS</span><span id="width-val">1.0</span></div>
+                    <input type="range" id="width" min="0.7" max="1.4" step="0.01" value="1">
+                </div>
+                <div>
+                    <div class="slider-label"><span>LEGS</span><span id="legs-val">1.0</span></div>
+                    <input type="range" id="legs" min="0.8" max="1.2" step="0.01" value="1">
+                </div>
+                <div>
+                    <div class="slider-label"><span>MUSCLE</span><span id="muscle-val">1.0</span></div>
+                    <input type="range" id="muscle" min="0.5" max="1.5" step="0.01" value="1">
+                </div>
+            </div>
+
+            <div>
+                <span class="slider-label font-bold text-gray-400 text-[10px]">SKIN COMPLEXION</span>
+                <div class="grid grid-cols-5 gap-2 mt-2">
+                    <button data-color="#ffdbac" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#ffdbac"></button>
+                    <button data-color="#c68642" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#c68642"></button>
+                    <button data-color="#8d5524" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#8d5524"></button>
+                    <button data-color="#ef4444" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#ef4444"></button>
+                    <button data-color="#f97316" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#f97316"></button>
+                    <button data-color="#eab308" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#eab308"></button>
+                    <button data-color="#22c55e" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#22c55e"></button>
+                    <button data-color="#06b6d4" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#06b6d4"></button>
+                    <button data-color="#3b82f6" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#3b82f6"></button>
+                    <button data-color="#a855f7" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#a855f7"></button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-gray-800 space-y-4">
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">MAGIC: LEFT HAND</span>
+                    <select id="magic-left" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                        <option value="fire">Fire</option>
+                        <option value="ice">Ice</option>
+                        <option value="arcane">Arcane</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">MAGIC: RIGHT HAND</span>
+                    <select id="magic-right" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                        <option value="ice">Ice</option>
+                        <option value="fire">Fire</option>
+                        <option value="arcane">Arcane</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="control-hint" class="hidden space-y-2 text-[11px] text-gray-400 bg-black/40 p-4 rounded-xl border border-white/5 mt-4">
+            <p class="flex justify-between"><b class="text-blue-400">WASD</b> <span>Move</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">SHIFT</b> <span>Sprint</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">SPACE</b> <span>Jump</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">R</b> <span>Respawn</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">C</b> <span>Crouch</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">CLICK</b> <span>Attack</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">F</b> <span>Spell</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">X</b> <span>Switch Shoulder</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">HOLD Q</b> <span>Weapon Wheel</span></p>
+            <div class="pt-3 text-[9px] text-center opacity-50 uppercase tracking-widest font-bold">Press ESC to Exit Control Mode</div>
+        </div>
+    </div>
+
+</body>
+</html>
