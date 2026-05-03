@@ -783,6 +783,7 @@ function animate() {
             bodyParts.leftEye.position.z = 0.3 + Math.min(speed * 0.2, 0.5) * 0.175;
             bodyParts.rightEye.position.z = 0.3 + Math.min(speed * 0.2, 0.5) * 0.175;
             
+            /*
             if (Math.random() < speed * 1.5) {
                 const trailGeo = new THREE.SphereGeometry(0.05 + Math.random() * 0.05, 8, 8);
                 const trailMat = new THREE.MeshStandardMaterial({
@@ -801,6 +802,7 @@ function animate() {
                 if (!state.trails) state.trails = [];
                 state.trails.push({ mesh: trailMesh, life: 1.0 });
             }
+            */
         } else {
             bodyParts.blobMesh.rotation.z *= 0.8; bodyParts.blobMesh.rotation.x *= 0.8;
             bodyParts.leftEye.position.z += (0.3 - bodyParts.leftEye.position.z) * 0.1;
