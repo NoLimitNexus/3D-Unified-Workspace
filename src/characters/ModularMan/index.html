@@ -103,19 +103,14 @@
             </div>
 
             <div>
-                <span class="slider-label font-bold text-gray-400 text-[10px]">SKIN COMPLEXION</span>
-                <div class="grid grid-cols-5 gap-2 mt-2">
-                    <button data-color="#ffdbac" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#ffdbac"></button>
-                    <button data-color="#c68642" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#c68642"></button>
-                    <button data-color="#8d5524" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#8d5524"></button>
-                    <button data-color="#ef4444" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#ef4444"></button>
-                    <button data-color="#f97316" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#f97316"></button>
-                    <button data-color="#eab308" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#eab308"></button>
-                    <button data-color="#22c55e" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#22c55e"></button>
-                    <button data-color="#06b6d4" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#06b6d4"></button>
-                    <button data-color="#3b82f6" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#3b82f6"></button>
-                    <button data-color="#a855f7" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#a855f7"></button>
-                </div>
+                <span class="slider-label font-bold text-gray-400 text-[10px]">OUTFIT / SKIN</span>
+                <select id="skin-select" class="w-full bg-gray-800 text-white text-xs p-2 rounded mt-1 border border-white/10 outline-none hover:bg-gray-700 transition-colors cursor-pointer">
+                    <option value="default">Basic Man</option>
+                    <option value="ninja">Ninja Assassin</option>
+                    <option value="cyborg">Cybernetic</option>
+                    <option value="construction">Construction Worker</option>
+                    <option value="royal">Royal King</option>
+                </select>
             </div>
 
             <div class="pt-4 border-t border-gray-800 space-y-4">
@@ -239,6 +234,7 @@
             buildEnvironment();
             buildWasps();
             buildCharacter();
+            applySkin('default');
 
             setupControls();
             updateProportions();
@@ -488,9 +484,10 @@
                 }
             });
 
-            document.querySelectorAll('.skin-btn').forEach(btn => {
-                btn.onclick = () => setSkin(btn.dataset.color);
-            });
+            const skinSelect = document.getElementById('skin-select');
+            if (skinSelect) {
+                skinSelect.onchange = (e) => applySkin(e.target.value);
+            }
 
             const magicLeftSelect = document.getElementById('magic-left');
             if(magicLeftSelect) magicLeftSelect.onchange = (e) => state.magicLeft = e.target.value;
@@ -627,7 +624,7 @@
                 state.isDead = false;
                 buildCharacter();
                 updateProportions();
-                setSkin(state.skin);
+                applySkin(state.skinId || 'default');
                 return;
             }
             state.isDead = true;
@@ -784,9 +781,103 @@
             state.tracers.push({ mesh: proj, v: velocity, life: 2.0, isMagic: true, magicType: magicType });
         }
 
-        function setSkin(hex) {
-            state.skin = hex;
-            character.traverse(obj => { if(obj.isMesh && obj.material) obj.material.color.set(hex); });
+        const SKINS = {
+            default: { name: "Basic", color: '#ffdbac', accessories: [] },
+            ninja: { name: "Ninja", color: '#222222', accessories: ['headband'] },
+            cyborg: { name: "Cyborg", color: '#88aaff', accessories: ['visor'] },
+            construction: { name: "Worker", color: '#f97316', accessories: ['hardhat'] },
+            royal: { name: "Royal", color: '#eab308', accessories: ['crown'] }
+        };
+
+        function applySkin(skinId) {
+            const skin = SKINS[skinId] || SKINS.default;
+            state.skinId = skinId;
+            state.skin = skin.color;
+            
+            // Apply color to body parts only, ignoring weapons/magic
+            character.traverse(obj => { 
+                if(obj.isMesh && obj.material && 
+                   (!bodyParts.axe || !bodyParts.axe.children.includes(obj)) && 
+                   (!bodyParts.gun || !bodyParts.gun.children.includes(obj)) && 
+                   obj !== bodyParts.auraL && obj !== bodyParts.auraR &&
+                   (!bodyParts.accessories || !bodyParts.accessories.children.some(child => child === obj || child.children.includes(obj)))
+                ) {
+                    obj.material.color.set(skin.color);
+                    if (skinId === 'cyborg') {
+                        obj.material.metalness = 0.8;
+                        obj.material.roughness = 0.2;
+                    } else {
+                        obj.material.metalness = 0.1;
+                        obj.material.roughness = 0.6;
+                    }
+                }
+            });
+
+            // Handle accessories
+            if (!bodyParts.accessories) {
+                bodyParts.accessories = new THREE.Group();
+                bodyParts.head.add(bodyParts.accessories);
+            }
+            
+            // Clear old accessories
+            while(bodyParts.accessories.children.length > 0) {
+                bodyParts.accessories.remove(bodyParts.accessories.children[0]);
+            }
+
+            skin.accessories.forEach(acc => {
+                if (acc === 'headband') {
+                    const bandGeo = new THREE.CylinderGeometry(0.185, 0.185, 0.05, 16, 1, true);
+                    const bandMat = new THREE.MeshStandardMaterial({color: 0x880000, roughness: 0.9, side: THREE.DoubleSide});
+                    const band = new THREE.Mesh(bandGeo, bandMat);
+                    band.position.set(0, 0.08, 0);
+                    
+                    const tailGeo = new THREE.BoxGeometry(0.04, 0.15, 0.01);
+                    const tail1 = new THREE.Mesh(tailGeo, bandMat);
+                    tail1.position.set(0.08, 0, -0.18);
+                    tail1.rotation.x = -0.5;
+                    band.add(tail1);
+                    
+                    bodyParts.accessories.add(band);
+                }
+                else if (acc === 'visor') {
+                    const visorGeo = new THREE.BoxGeometry(0.3, 0.06, 0.1);
+                    const visorMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.2});
+                    const visor = new THREE.Mesh(visorGeo, visorMat);
+                    visor.position.set(0, 0.08, 0.15);
+                    
+                    const glowGeo = new THREE.BoxGeometry(0.25, 0.02, 0.11);
+                    const glowMat = new THREE.MeshBasicMaterial({color: 0x00ffff});
+                    const glow = new THREE.Mesh(glowGeo, glowMat);
+                    visor.add(glow);
+
+                    bodyParts.accessories.add(visor);
+                }
+                else if (acc === 'hardhat') {
+                    const hatGeo = new THREE.SphereGeometry(0.2, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                    const hatMat = new THREE.MeshStandardMaterial({color: 0xffd700, roughness: 0.3});
+                    const hat = new THREE.Mesh(hatGeo, hatMat);
+                    hat.position.set(0, 0.1, 0);
+                    
+                    const brimGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.02, 16);
+                    const brim = new THREE.Mesh(brimGeo, hatMat);
+                    brim.position.set(0, 0, 0.05);
+                    hat.add(brim);
+
+                    bodyParts.accessories.add(hat);
+                }
+                else if (acc === 'crown') {
+                    const crownGeo = new THREE.CylinderGeometry(0.18, 0.15, 0.12, 8, 1, false);
+                    const pos = crownGeo.attributes.position;
+                    for(let i=0; i<pos.count; i++) {
+                        if (pos.getY(i) > 0 && i % 2 === 0) pos.setY(i, pos.getY(i) + 0.08);
+                    }
+                    crownGeo.computeVertexNormals();
+                    const crownMat = new THREE.MeshStandardMaterial({color: 0xffd700, roughness: 0.3, metalness: 0.8});
+                    const crown = new THREE.Mesh(crownGeo, crownMat);
+                    crown.position.set(0, 0.15, 0);
+                    bodyParts.accessories.add(crown);
+                }
+            });
         }
 
         function resetPose() {
