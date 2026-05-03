@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Character Base Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #050505; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem; }
+        input[type=range] { width: 100%; height: 4px; border-radius: 2px; appearance: none; background: #374151; outline: none; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #60a5fa; cursor: pointer; }
+        .control-panel { backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(255,255,255,0.1); }
+        .action-btn { background-color: #1f2937; padding: 6px 8px; border-radius: 4px; font-size: 10px; text-transform: uppercase; font-weight: bold; text-align: center; border: 1px solid transparent; cursor: pointer; color: white; transition: 0.2s; }
+        .action-btn:hover { background-color: #2563eb; }
+        .active-anim { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.5); }
+        #crosshair { display: none; }
+        .control-mode #crosshair { display: block; }
+        #loading-screen { position: fixed; inset: 0; background: #0a0a0a; display: flex; align-items: center; justify-content: center; z-index: 100; color: white; transition: opacity 0.5s; }
+        #weapon-wheel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; z-index: 60; pointer-events: none; }
+        #weapon-wheel.active { display: block; }
+        .wheel-item { position: absolute; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #9ca3af; border: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px); background: rgba(17, 24, 39, 0.85); transition: all 0.15s ease; letter-spacing: 0.5px; }
+        .wheel-item.highlighted { color: white; border-color: #60a5fa; background: rgba(37, 99, 235, 0.6); box-shadow: 0 0 20px rgba(96, 165, 250, 0.4); transform: scale(1.15); }
+        .wheel-item .wheel-icon { font-size: 18px; margin-bottom: 2px; }
+    </style>
+</head>
+<body class="preview-mode">
+    <div id="hotbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20 control-panel p-2 rounded-xl transition-opacity duration-300 opacity-0 pointer-events-none text-white">
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold ring-2 ring-blue-500" id="slot-0">HANDS</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-1">PISTOL</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-2">AXE</div>
+        <div class="px-4 py-2 bg-gray-800 rounded-lg text-xs font-bold transition flex items-center gap-2" id="slot-3">MAGIC</div>
+    </div>
+
+    <div id="weapon-wheel">
+        <div class="wheel-item" id="wheel-0" style="top: 0; left: 50%; transform: translateX(-50%);"><span class="wheel-icon">✊</span>HANDS</div>
+        <div class="wheel-item" id="wheel-1" style="top: 50%; right: 0; transform: translateY(-50%);"><span class="wheel-icon">🔫</span>PISTOL</div>
+        <div class="wheel-item" id="wheel-2" style="bottom: 0; left: 50%; transform: translateX(-50%);"><span class="wheel-icon">🪓</span>AXE</div>
+        <div class="wheel-item" id="wheel-3" style="top: 50%; left: 0; transform: translateY(-50%);"><span class="wheel-icon">✨</span>MAGIC</div>
+    </div>
+
+    <div id="loading-screen">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-xs uppercase tracking-widest text-gray-500">Initializing Rig...</p>
+        </div>
+    </div>
+
+    <div id="crosshair" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
+        <div class="w-6 h-6 border border-white/20 rounded-full flex items-center justify-center">
+            <div class="w-1 h-1 bg-white rounded-full"></div>
+        </div>
+    </div>
+
+    <div id="ui" class="absolute top-4 left-4 z-20 w-72 max-h-[95vh] overflow-y-auto control-panel p-6 rounded-2xl shadow-2xl text-white transition-opacity duration-300">
+        <div class="flex flex-col gap-3 mb-6 border-b border-gray-700 pb-4">
+            <h1 class="text-xl font-black tracking-tight italic text-blue-400">CHARACTER BASE</h1>
+            <button id="mode-toggle" class="w-full bg-blue-500 hover:bg-blue-400 text-[11px] py-2 rounded-lg font-black uppercase tracking-widest transition-all">Enter Control Mode</button>
+        </div>
+        
+        <div id="creator-controls" class="space-y-5">
+            <div>
+                <span class="slider-label font-bold text-gray-400">PREVIEW STATE</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-idle" class="action-btn active-anim">IDLE</button>
+                    <button id="btn-walk" class="action-btn">WALK</button>
+                    <button id="btn-run" class="action-btn">RUN</button>
+                </div>
+            </div>
+
+            <div>
+                <span class="slider-label font-bold text-gray-400">QUICK ACTIONS</span>
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <button id="btn-jump" class="action-btn bg-orange-700/50 hover:bg-orange-600">JUMP</button>
+                    <button id="btn-punch" class="action-btn">PUNCH</button>
+                    <button id="btn-crouch" class="action-btn">CROUCH</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-spell" class="action-btn bg-purple-700/50 hover:bg-purple-600">SPELL</button>
+                    <button id="btn-die" class="action-btn bg-red-700/50 hover:bg-red-600">DIE/RESPAWN</button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-gray-800 space-y-4">
+                <div>
+                    <div class="slider-label"><span>HEIGHT</span><span id="height-val">1.0</span></div>
+                    <input type="range" id="height" min="0.8" max="1.2" step="0.01" value="1">
+                </div>
+                <div>
+                    <div class="slider-label"><span>SHOULDERS</span><span id="width-val">1.0</span></div>
+                    <input type="range" id="width" min="0.7" max="1.4" step="0.01" value="1">
+                </div>
+                <div>
+                    <div class="slider-label"><span>LEGS</span><span id="legs-val">1.0</span></div>
+                    <input type="range" id="legs" min="0.8" max="1.2" step="0.01" value="1">
+                </div>
+                <div>
+                    <div class="slider-label"><span>MUSCLE</span><span id="muscle-val">1.0</span></div>
+                    <input type="range" id="muscle" min="0.5" max="1.5" step="0.01" value="1">
+                </div>
+            </div>
+
+            <div>
+                <span class="slider-label font-bold text-gray-400 text-[10px]">SKIN COMPLEXION</span>
+                <div class="grid grid-cols-5 gap-2 mt-2">
+                    <button data-color="#ffdbac" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#ffdbac"></button>
+                    <button data-color="#c68642" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#c68642"></button>
+                    <button data-color="#8d5524" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#8d5524"></button>
+                    <button data-color="#ef4444" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#ef4444"></button>
+                    <button data-color="#f97316" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#f97316"></button>
+                    <button data-color="#eab308" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#eab308"></button>
+                    <button data-color="#22c55e" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#22c55e"></button>
+                    <button data-color="#06b6d4" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#06b6d4"></button>
+                    <button data-color="#3b82f6" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#3b82f6"></button>
+                    <button data-color="#a855f7" class="skin-btn w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition" style="background:#a855f7"></button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-gray-800 space-y-4">
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">MAGIC: LEFT HAND</span>
+                    <select id="magic-left" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                        <option value="fire">Fire</option>
+                        <option value="ice">Ice</option>
+                        <option value="arcane">Arcane</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="slider-label font-bold text-gray-400 text-[10px]">MAGIC: RIGHT HAND</span>
+                    <select id="magic-right" class="w-full bg-gray-800 text-white text-xs p-1 rounded mt-1 border border-white/10 outline-none">
+                        <option value="ice">Ice</option>
+                        <option value="fire">Fire</option>
+                        <option value="arcane">Arcane</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="control-hint" class="hidden space-y-2 text-[11px] text-gray-400 bg-black/40 p-4 rounded-xl border border-white/5 mt-4">
+            <p class="flex justify-between"><b class="text-blue-400">WASD</b> <span>Move</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">SHIFT</b> <span>Sprint</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">SPACE</b> <span>Jump</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">R</b> <span>Respawn</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">C</b> <span>Crouch</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">CLICK</b> <span>Attack</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">F</b> <span>Spell</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">X</b> <span>Switch Shoulder</span></p>
+            <p class="flex justify-between"><b class="text-blue-400">HOLD Q</b> <span>Weapon Wheel</span></p>
+            <div class="pt-3 text-[9px] text-center opacity-50 uppercase tracking-widest font-bold">Press ESC to Exit Control Mode</div>
+        </div>
+    </div>
+
+    <script type="module">
+        let scene, camera, renderer, character, clock;
+        let bodyParts = {};
+        let keys = {};
+        let wasps = [];
+        let targetPopEffects = [];
+        let hillData = [];
+        let wheelOpen = false;
+        let wheelSelection = -1;
+        let wheelMouseX = 0, wheelMouseY = 0;
+        let state = {
+            anim: 'idle',
+            height: 1,
+            width: 1,
+            legs: 1,
+            muscle: 1,
+            skin: '#ffdbac',
+            isCrouching: false,
+            jumpTime: -1,
+            punchSide: 1,
+            isControlMode: false,
+            punchTime: -1,
+            camZoom: 1.0,
+            spellTime: -1,
+            isDead: false,
+            camPitch: 0,
+            camYaw: 0,
+            inventory: 0,
+            shootTime: 0,
+            magicTimeL: 0,
+            magicTimeR: 0,
+            magicLeft: 'fire',
+            magicRight: 'ice',
+            tracers: [],
+            camSide: -1,
+            currentCamSide: -1,
+            enemiesPaused: true
+        };
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.Fog(0x1a1a2e, 15, 120);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(3.0, 1.5, 4.5);
+            camera.lookAt(0, 0.8, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambient);
+
+            const spot = new THREE.DirectionalLight(0xfffff0, 1.5);
+            spot.position.set(15, 30, -15);
+            spot.castShadow = true;
+            spot.shadow.mapSize.set(2048, 2048);
+            spot.shadow.bias = -0.0005;
+            scene.add(spot);
+
+            const fill = new THREE.DirectionalLight(0x60a5fa, 0.8);
+            fill.position.set(-10, 15, 10);
+            scene.add(fill);
+
+            const grid = new THREE.GridHelper(200, 100, 0x1a3a1a, 0x0d2b0d);
+            scene.add(grid);
+
+            const floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(1000, 1000),
+                new THREE.MeshStandardMaterial({ color: 0x1a3a1a, roughness: 0.9, metalness: 0.05 })
+            );
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            clock = new THREE.Clock();
+            
+            buildEnvironment();
+            buildWasps();
+            buildCharacter();
+
+            setupControls();
+            updateProportions();
+
+            setTimeout(() => {
+                const ls = document.getElementById('loading-screen');
+                if(ls) {
+                    ls.style.opacity = '0';
+                    setTimeout(() => ls.remove(), 500);
+                }
+            }, 500);
+        }
+
+        function createRoundedBoxGeometry(w, h, d, r) {
+            const shape = new THREE.Shape();
+            const x = -w/2, y = -d/2;
+            shape.moveTo(x, y + r);
+            shape.lineTo(x, y + d - r);
+            shape.quadraticCurveTo(x, y + d, x + r, y + d);
+            shape.lineTo(x + w - r, y + d);
+            shape.quadraticCurveTo(x + w, y + d, x + w, y + d - r);
+            shape.lineTo(x + w, y + r);
+            shape.quadraticCurveTo(x + w, y, x + w - r, y);
+            shape.lineTo(x + r, y);
+            shape.quadraticCurveTo(x, y, x, y + r);
+
+            const extrudeSettings = {
+                depth: h - (r * 2),
+                bevelEnabled: true,
+                bevelSegments: 4,
+                steps: 1,
+                bevelSize: r,
+                bevelThickness: r
+            };
+            const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            geo.center();
+            geo.rotateX(Math.PI / 2);
+            return geo;
+        }
+
+        function createPart(w, h, d, color) {
+            const r = Math.min(w, h, d) * 0.15; // 15% rounding
+            const geo = createRoundedBoxGeometry(w, h, d, r);
+            geo.translate(0, -h/2, 0); // Pivot at Top
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6, metalness: 0.1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        function buildCharacter() {
+            if(character) scene.remove(character);
+            if(state.deadParts) {
+                state.deadParts.forEach(dp => scene.remove(dp.obj));
+                state.deadParts = null;
+            }
+            character = new THREE.Group();
+            
+            // PELVIS
+            const pelvis = createPart(0.25, 0.15, 0.12, state.skin);
+            pelvis.geometry.translate(0, 0.075, 0); // Pivot at bottom
+            character.add(pelvis);
+            bodyParts.pelvis = pelvis;
+
+            // TORSO: Pivot at BOTTOM (waist)
+            const torsoR = Math.min(0.28, 0.45, 0.18) * 0.15;
+            const torsoGeo = createRoundedBoxGeometry(0.28, 0.45, 0.18, torsoR);
+            torsoGeo.translate(0, 0.45/2, 0); // Pivot at bottom 
+            const torso = new THREE.Mesh(torsoGeo, new THREE.MeshStandardMaterial({ color: state.skin, roughness: 0.6, metalness: 0.1 }));
+            torso.position.y = 0.15; 
+            torso.castShadow = true; torso.receiveShadow = true;
+            pelvis.add(torso);
+            bodyParts.torso = torso;
+
+            // HEAD: On top of torso
+            const headR = Math.min(0.18, 0.22, 0.18) * 0.25;
+            const head = new THREE.Mesh(
+                createRoundedBoxGeometry(0.18, 0.22, 0.18, headR),
+                new THREE.MeshStandardMaterial({ color: state.skin, roughness: 0.6, metalness: 0.1 })
+            );
+            head.position.y = 0.45 + 0.12; 
+            head.castShadow = true;
+            head.receiveShadow = true;
+            torso.add(head);
+            bodyParts.head = head;
+
+            // LEGS
+            bodyParts.legL = createLeg();
+            bodyParts.legL.position.set(0.09, 0, 0);
+            pelvis.add(bodyParts.legL);
+
+            bodyParts.legR = createLeg();
+            bodyParts.legR.position.set(-0.09, 0, 0);
+            pelvis.add(bodyParts.legR);
+
+            // ARMS: At shoulder level (torso height 0.45, so ~0.40 relative to bottom pivot)
+            bodyParts.armL = createArm();
+            bodyParts.armL.position.set(0.19, 0.40, 0);
+            torso.add(bodyParts.armL);
+
+            bodyParts.armR = createArm();
+            bodyParts.armR.position.set(-0.19, 0.40, 0);
+            torso.add(bodyParts.armR);
+
+            // WEAPONS
+            const weaponsMat = new THREE.MeshStandardMaterial({color: 0x333333, roughness: 0.4, metalness: 0.6});
+            
+            // Pistol
+            bodyParts.gun = new THREE.Group();
+            bodyParts.gun.position.set(0, -0.05, 0);
+            const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.05), weaponsMat);
+            barrel.position.set(0, -0.1, 0.05);
+            barrel.castShadow = true;
+            const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.12), weaponsMat);
+            grip.position.set(0, 0, -0.02);
+            grip.castShadow = true;
+            bodyParts.gun.add(barrel); bodyParts.gun.add(grip);
+            bodyParts.gun.visible = (state.inventory === 1);
+            bodyParts.armR.hand.add(bodyParts.gun);
+
+            // Axe
+            bodyParts.axe = new THREE.Group();
+            bodyParts.axe.position.set(0, -0.05, 0);
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5), new THREE.MeshStandardMaterial({color: 0x5c4033}));
+            handle.position.set(0, -0.20, 0); // Handle extends down from inside the fist
+            handle.castShadow = true;
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.15, 0.18), weaponsMat);
+            blade.position.set(0, -0.38, -0.08); // Blade at far end of handle
+            blade.castShadow = true;
+            bodyParts.axe.add(handle); bodyParts.axe.add(blade);
+            bodyParts.axe.visible = (state.inventory === 2);
+            bodyParts.armR.hand.add(bodyParts.axe);
+
+            // Magic Auras
+            const auraGeo = new THREE.IcosahedronGeometry(0.1, 0); 
+            const auraMatL = new THREE.MeshBasicMaterial({color: 0xff4400, wireframe: true, transparent: true, opacity: 0.6});
+            const auraMatR = new THREE.MeshBasicMaterial({color: 0x00aaff, wireframe: true, transparent: true, opacity: 0.6});
+            bodyParts.auraL = new THREE.Mesh(auraGeo, auraMatL);
+            bodyParts.auraR = new THREE.Mesh(auraGeo, auraMatR);
+            bodyParts.auraL.visible = false;
+            bodyParts.auraR.visible = false;
+            bodyParts.auraL.position.set(0, -0.05, 0);
+            bodyParts.auraR.position.set(0, -0.05, 0);
+            bodyParts.armL.hand.add(bodyParts.auraL);
+            bodyParts.armR.hand.add(bodyParts.auraR);
+
+            // CAMERA RIG
+            if (bodyParts.camRig) scene.remove(bodyParts.camRig);
+            bodyParts.camRig = new THREE.Group();
+            bodyParts.camRig.position.y = 2.0;
+            scene.add(bodyParts.camRig);
+
+            scene.add(character);
+        }
+
+        function createLeg() {
+            const thigh = createPart(0.12, 0.45, 0.12, state.skin);
+            const calf = createPart(0.1, 0.45, 0.1, state.skin);
+            calf.position.y = -0.45;
+            thigh.add(calf);
+            const foot = createPart(0.11, 0.06, 0.22, state.skin);
+            foot.geometry.translate(0, -0.03, 0.06);
+            foot.position.y = -0.45;
+            calf.add(foot);
+            thigh.calf = calf;
+            thigh.foot = foot;
+            return thigh;
+        }
+
+        function createArm() {
+            const upper = createPart(0.1, 0.35, 0.1, state.skin);
+            const lower = createPart(0.08, 0.32, 0.08, state.skin);
+            lower.position.y = -0.35;
+            upper.add(lower);
+            const hand = createPart(0.08, 0.1, 0.08, state.skin);
+            hand.position.y = -0.32;
+            lower.add(hand);
+            upper.lower = lower;
+            upper.hand = hand;
+            return upper;
+        }
+
+        function updateProportions() {
+            if (!bodyParts.torso) return;
+            const s = state;
+            bodyParts.torso.scale.set(s.width, s.height, s.muscle);
+            bodyParts.head.scale.set(1/s.width, 1/s.height, 1/s.muscle).multiplyScalar(1.1);
+            const legS = new THREE.Vector3(s.muscle, s.legs, s.muscle);
+            bodyParts.legL.scale.copy(legS);
+            bodyParts.legR.scale.copy(legS);
+            const armS = new THREE.Vector3(s.muscle, s.height, s.muscle);
+            bodyParts.armL.scale.copy(armS);
+            bodyParts.armR.scale.copy(armS);
+            document.getElementById('height-val').innerText = s.height.toFixed(2);
+            document.getElementById('width-val').innerText = s.width.toFixed(2);
+            document.getElementById('legs-val').innerText = s.legs.toFixed(2);
+            document.getElementById('muscle-val').innerText = s.muscle.toFixed(2);
+        }
+
+        function setupControls() {
+            ['height', 'width', 'legs', 'muscle'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.oninput = (e) => { state[id] = parseFloat(e.target.value); updateProportions(); };
+            });
+
+            document.getElementById('btn-idle').onclick = () => setAnim('idle');
+            document.getElementById('btn-walk').onclick = () => setAnim('walk');
+            document.getElementById('btn-run').onclick = () => setAnim('run');
+            document.getElementById('btn-jump').onclick = () => triggerJump();
+            document.getElementById('btn-punch').onclick = () => setAnim('punch');
+            document.getElementById('btn-crouch').onclick = () => toggleCrouch();
+            document.getElementById('btn-spell').onclick = () => triggerSpell();
+            document.getElementById('btn-die').onclick = () => triggerDeath();
+            
+            const modeToggleBtn = document.getElementById('mode-toggle');
+            modeToggleBtn.onclick = () => {
+                document.body.requestPointerLock();
+                modeToggleBtn.blur(); 
+            };
+
+            // Pointer Lock Event Handling
+            document.addEventListener('pointerlockchange', () => {
+                const isLocked = document.pointerLockElement === document.body;
+                state.isControlMode = isLocked;
+                
+                const btn = document.getElementById('mode-toggle');
+                const hint = document.getElementById('control-hint');
+                const creator = document.getElementById('creator-controls');
+                
+                if (isLocked) {
+                    btn.innerText = "Locked (Esc to Exit)";
+                    hint.classList.remove('hidden');
+                    creator.classList.add('hidden');
+                    document.body.classList.add('control-mode');
+                    character.rotation.y = 0; 
+                } else {
+                    btn.innerText = "Enter Control Mode";
+                    hint.classList.add('hidden');
+                    creator.classList.remove('hidden');
+                    document.body.classList.remove('control-mode');
+                    character.position.set(0, 0, 0);
+                    state.camZoom = 1.0;
+                    state.camYaw = 0;
+                    camera.position.set(3.0, 1.5, 4.5);
+                    camera.lookAt(0, 0.8, 0);
+                }
+            });
+
+            document.querySelectorAll('.skin-btn').forEach(btn => {
+                btn.onclick = () => setSkin(btn.dataset.color);
+            });
+
+            const magicLeftSelect = document.getElementById('magic-left');
+            if(magicLeftSelect) magicLeftSelect.onchange = (e) => state.magicLeft = e.target.value;
+            const magicRightSelect = document.getElementById('magic-right');
+            if(magicRightSelect) magicRightSelect.onchange = (e) => state.magicRight = e.target.value;
+
+            window.addEventListener('keydown', (e) => { 
+                const gameKeys = ['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyF', 'KeyX', 'KeyQ', 'KeyR', 'KeyP', 'ShiftLeft', 'ShiftRight'];
+                if(gameKeys.includes(e.code) && state.isControlMode) e.preventDefault();
+
+                keys[e.code] = true; 
+                if(e.code === 'Space') triggerJump(); 
+                if(e.code === 'KeyC') toggleCrouch(); 
+                if(e.code === 'KeyF') triggerSpell(); 
+                if(e.code === 'KeyR') triggerDeath();
+                if(e.code === 'KeyP') state.enemiesPaused = !state.enemiesPaused;
+                if(e.code === 'KeyX' && !e.repeat && state.isControlMode) state.camSide *= -1;
+                if(e.code === 'KeyQ' && !e.repeat && state.isControlMode) openWeaponWheel();
+            });
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+                if(e.code === 'KeyQ' && wheelOpen) closeWeaponWheel();
+            });
+
+            window.addEventListener('wheel', (e) => {
+                state.camZoom += e.deltaY * 0.0015;
+                state.camZoom = Math.max(0.4, Math.min(state.camZoom, 3.0));
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            let isDragging = false, prevX = 0;
+            window.addEventListener('mousedown', (e) => {
+                if(e.target.closest('#ui')) return;
+                if(!state.isControlMode) isDragging = true;
+                if(state.isControlMode) {
+                    if (state.inventory === 3) {
+                        if (e.button === 0 && state.magicTimeL <= 0) castMagic('left');
+                        if (e.button === 2 && state.magicTimeR <= 0) castMagic('right');
+                    } else if (e.button === 0) {
+                        triggerPunch();
+                    }
+                }
+            });
+            window.addEventListener('contextmenu', (e) => {
+                if (state.isControlMode && state.inventory === 3) e.preventDefault();
+            });
+            window.addEventListener('mouseup', () => isDragging = false);
+            window.addEventListener('mousemove', (e) => {
+                if(state.isControlMode && document.pointerLockElement) {
+                    if (wheelOpen) {
+                        wheelMouseX += e.movementX;
+                        wheelMouseY += e.movementY;
+                        updateWheelHighlight();
+                    } else {
+                        state.camYaw -= e.movementX * 0.003;
+                        state.camPitch += e.movementY * 0.003;
+                        state.camPitch = Math.max(-1.0, Math.min(1.2, state.camPitch));
+                    }
+                } else if(isDragging) {
+                    character.rotation.y += (e.clientX - prevX) * 0.01;
+                }
+                prevX = e.clientX;
+            });
+        }
+
+        function setAnim(type) { 
+            state.anim = type; 
+            document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active-anim'));
+            const btn = document.getElementById('btn-' + type);
+            if(btn) btn.classList.add('active-anim');
+        }
+
+        function setInventory(slot) {
+            state.inventory = slot;
+            if(bodyParts.gun) bodyParts.gun.visible = (slot === 1);
+            if(bodyParts.axe) bodyParts.axe.visible = (slot === 2);
+            for(let i=0; i<4; i++) {
+                const el = document.getElementById('slot-'+i);
+                if(el) el.classList.toggle('ring-2', i === slot);
+                if(el) el.classList.toggle('ring-blue-500', i === slot);
+            }
+        }
+
+        function openWeaponWheel() {
+            wheelOpen = true;
+            wheelMouseX = 0;
+            wheelMouseY = 0;
+            wheelSelection = -1;
+            document.getElementById('weapon-wheel').classList.add('active');
+            updateWheelHighlight();
+        }
+
+        function closeWeaponWheel() {
+            wheelOpen = false;
+            document.getElementById('weapon-wheel').classList.remove('active');
+            if (wheelSelection >= 0) setInventory(wheelSelection);
+            document.querySelectorAll('.wheel-item').forEach(el => el.classList.remove('highlighted'));
+        }
+
+        function updateWheelHighlight() {
+            const dist = Math.sqrt(wheelMouseX * wheelMouseX + wheelMouseY * wheelMouseY);
+            if (dist < 15) {
+                wheelSelection = -1;
+            } else {
+                const angle = Math.atan2(wheelMouseX, -wheelMouseY); // 0=up, +CW
+                const deg = angle * 180 / Math.PI;
+                if (deg >= -45 && deg < 45) wheelSelection = 0;      // top = HANDS
+                else if (deg >= 45 && deg <= 135) wheelSelection = 1; // right = PISTOL
+                else if (deg > 135 || deg < -135) wheelSelection = 2; // bottom = AXE
+                else wheelSelection = 3;                               // left = MAGIC
+            }
+            for(let i=0; i<4; i++) {
+                const el = document.getElementById('wheel-'+i);
+                if(el) el.classList.toggle('highlighted', i === wheelSelection);
+            }
+        }
+
+        function toggleCrouch() {
+            state.isCrouching = !state.isCrouching;
+            document.getElementById('btn-crouch').classList.toggle('active-anim', state.isCrouching);
+        }
+
+        function triggerJump() { if(state.jumpTime < 0) state.jumpTime = 0; }
+        
+        function triggerSpell() { if(state.spellTime < 0 && !state.isDead) state.spellTime = 0; }
+        
+        function triggerDeath() {
+            if (state.isDead) {
+                state.isDead = false;
+                buildCharacter();
+                updateProportions();
+                setSkin(state.skin);
+                return;
+            }
+            state.isDead = true;
+            const parts = [
+                bodyParts.pelvis, bodyParts.torso, bodyParts.head,
+                bodyParts.legL, bodyParts.legR,
+                bodyParts.legL.calf, bodyParts.legR.calf,
+                bodyParts.legL.foot, bodyParts.legR.foot,
+                bodyParts.armL, bodyParts.armR,
+                bodyParts.armL.lower, bodyParts.armR.lower,
+                bodyParts.armL.hand, bodyParts.armR.hand
+            ];
+            state.deadParts = [];
+            parts.forEach(p => {
+                if (!p) return;
+                const wp = new THREE.Vector3(), wq = new THREE.Quaternion(), ws = new THREE.Vector3();
+                p.getWorldPosition(wp); p.getWorldQuaternion(wq); p.getWorldScale(ws);
+                const vx = (Math.random() - 0.5) * 6;
+                const vy = Math.random() * 4 + 2;
+                const vz = (Math.random() - 0.5) * 6;
+                const rRot = () => (Math.random() - 0.5) * 10;
+                state.deadParts.push({ obj: p, pos: wp, quat: wq, scale: ws, v: new THREE.Vector3(vx,vy,vz), r: new THREE.Vector3(rRot(),rRot(),rRot()) });
+            });
+            state.deadParts.forEach(dp => {
+                scene.add(dp.obj);
+                dp.obj.position.copy(dp.pos); dp.obj.quaternion.copy(dp.quat); dp.obj.scale.copy(dp.scale);
+            });
+        }
+        
+        function triggerPunch() {
+            if (state.isControlMode && state.inventory === 1) {
+                if (state.shootTime > 0) return;
+                shootGun();
+                return;
+            }
+            if(state.punchTime < 0) {
+                state.punchTime = 0;
+                state.punchSide = Math.random() > 0.5 ? 1 : -1;
+            }
+        }
+
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playGunshot() {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            // Pitch envelope
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+            
+            // Noise buffer
+            const bufferSize = Math.floor(audioCtx.sampleRate * 0.2);
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = 6000;
+            
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            
+            // Synth envelope
+            gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            
+            osc.start(audioCtx.currentTime);
+            noise.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+            noise.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function shootGun() {
+            playGunshot();
+            state.shootTime = 0.15;
+            
+            // Muzzle flash
+            const flashGeo = new THREE.PlaneGeometry(0.4, 0.4);
+            const flashMat = new THREE.MeshBasicMaterial({color: 0xffdd00, transparent: true, opacity: 0.9, side: THREE.DoubleSide});
+            const flash1 = new THREE.Mesh(flashGeo, flashMat);
+            const flash2 = new THREE.Mesh(flashGeo, flashMat);
+            flash2.rotation.y = Math.PI/2;
+            const flash = new THREE.Group();
+            flash.add(flash1); flash.add(flash2);
+
+            flash.position.set(0, -0.28, 0.05); 
+            flash.rotation.x = -Math.PI/2;
+            flash.rotation.y = Math.random() * Math.PI;
+            if(bodyParts.gun) bodyParts.gun.add(flash);
+            
+            setTimeout(() => {
+                if(bodyParts.gun && flash) bodyParts.gun.remove(flash);
+                flashGeo.dispose(); flashMat.dispose();
+            }, 50);
+
+            // Tracer
+            const tracerGeo = new THREE.CylinderGeometry(0.015, 0.015, 4.0);
+            tracerGeo.rotateX(Math.PI/2);
+            const tracer = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({color: 0xffffee, transparent: true, opacity: 0.8}));
+            scene.add(tracer);
+
+            const aimTgt = bodyParts.camRig.localToWorld(new THREE.Vector3(0, 0, 100));
+            const startPos = bodyParts.gun.localToWorld(new THREE.Vector3(0, -0.25, 0.05));
+            tracer.position.copy(startPos);
+            tracer.lookAt(aimTgt);
+            
+            const velocity = aimTgt.clone().sub(startPos).normalize().multiplyScalar(120); 
+            state.tracers.push({ mesh: tracer, v: velocity, life: 1.0 });
+        }
+
+        function castMagic(hand) {
+            playGunshot(); // Reuse synth with lower volume temporarily
+
+            const isLeft = hand === 'left';
+            if (isLeft) state.magicTimeL = 0.25;
+            else state.magicTimeR = 0.25;
+
+            const magicType = isLeft ? state.magicLeft : state.magicRight;
+            const color = magicType === 'fire' ? 0xff4400 : (magicType === 'arcane' ? 0xcc00ff : 0x00aaff);
+            const geo = new THREE.SphereGeometry(0.12, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({color: color, transparent: true, opacity: 0.9});
+            const proj = new THREE.Mesh(geo, mat);
+            
+            const light = new THREE.PointLight(color, 1.0, 5.0);
+            proj.add(light);
+            scene.add(proj);
+
+            const aimTgt = bodyParts.camRig.localToWorld(new THREE.Vector3(0, 0, 100));
+            const startRef = isLeft ? bodyParts.armL.hand : bodyParts.armR.hand;
+            const startPos = startRef.getWorldPosition(new THREE.Vector3());
+            proj.position.copy(startPos);
+            proj.position.addScaledVector(aimTgt.clone().sub(startPos).normalize(), 0.5);
+            proj.lookAt(aimTgt);
+            
+            const velocity = aimTgt.clone().sub(startPos).normalize().multiplyScalar(50); 
+            state.tracers.push({ mesh: proj, v: velocity, life: 2.0, isMagic: true, magicType: magicType });
+        }
+
+        function setSkin(hex) {
+            state.skin = hex;
+            character.traverse(obj => { if(obj.isMesh && obj.material) obj.material.color.set(hex); });
+        }
+
+        function resetPose() {
+            if (!bodyParts.pelvis) return;
+            bodyParts.legL.rotation.x = 0;
+            bodyParts.legR.rotation.x = 0;
+            bodyParts.legL.foot.rotation.x = 0;
+            bodyParts.legR.foot.rotation.x = 0;
+            bodyParts.armL.rotation.set(0,0,0.15);
+            bodyParts.armR.rotation.set(0,0,-0.15);
+            bodyParts.torso.rotation.set(0, 0, 0);
+            bodyParts.head.rotation.set(0, 0, 0);
+            bodyParts.legL.calf.rotation.x = 0;
+            bodyParts.legR.calf.rotation.x = 0;
+            bodyParts.armL.lower.rotation.x = -0.2;
+            bodyParts.armR.lower.rotation.x = -0.2;
+            if (!state.isControlMode) character.position.y = 0; 
+        }
+
+        function getTerrainHeight(px, pz) {
+            let maxH = 0;
+            for (const h of hillData) {
+                const dx = px - h.x;
+                const dz = pz - h.z;
+                const dist2 = dx * dx + dz * dz;
+                const r2 = h.r * h.r;
+                if (dist2 < r2) {
+                    // Exact half-sphere height curve
+                    const height = h.h * Math.sqrt(1 - dist2 / r2);
+                    maxH = Math.max(maxH, height);
+                }
+            }
+            return maxH;
+        }
+
+        function buildEnvironment() {
+            const hillMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.95, metalness: 0.0 });
+            const hillConfigs = [
+                { x: 15, z: -20, r: 12, h: 2.5 }, { x: -25, z: -10, r: 16, h: 3.5 },
+                { x: 30, z: 15, r: 10, h: 2.0 }, { x: -15, z: 25, r: 14, h: 3.0 },
+                { x: 40, z: -35, r: 18, h: 4.0 }, { x: -40, z: -30, r: 15, h: 3.2 },
+                { x: 10, z: 40, r: 11, h: 2.2 }, { x: -30, z: 40, r: 14, h: 2.8 },
+                { x: 50, z: 5, r: 13, h: 2.5 }, { x: -50, z: -5, r: 20, h: 4.5 },
+                { x: 20, z: -50, r: 16, h: 3.0 }, { x: -10, z: -45, r: 11, h: 2.0 },
+            ];
+            hillData = hillConfigs;
+
+            hillConfigs.forEach(h => {
+                // Half-sphere
+                const geo = new THREE.SphereGeometry(h.r, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                const hill = new THREE.Mesh(geo, hillMat);
+                hill.position.set(h.x, 0, h.z);
+                hill.scale.y = h.h / h.r; // Scale sphere to match target height exactly
+                hill.receiveShadow = true;
+                hill.castShadow = true;
+                scene.add(hill);
+            });
+
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 });
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x1a5c1a, roughness: 0.85 });
+            const darkLeafMat = new THREE.MeshStandardMaterial({ color: 0x0f3d0f, roughness: 0.85 });
+            const treePositions = [
+                { x: 8, z: -12 }, { x: -12, z: -8 }, { x: 18, z: 10 }, { x: -8, z: 15 },
+                { x: 25, z: -25 }, { x: -20, z: -18 }, { x: 35, z: 8 }, { x: -35, z: 12 },
+                { x: 5, z: 25 }, { x: -5, z: -30 }, { x: 15, z: 30 }, { x: -25, z: 28 },
+                { x: 42, z: -15 }, { x: -45, z: -20 }, { x: 12, z: -38 }, { x: -18, z: 35 },
+            ];
+            treePositions.forEach(tp => {
+                const tree = new THREE.Group();
+                const trunkH = 1.5 + Math.random() * 2.5;
+                const trunkR = 0.08 + Math.random() * 0.06;
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 6), trunkMat);
+                trunk.position.y = trunkH / 2;
+                trunk.castShadow = true;
+                tree.add(trunk);
+
+                const canopyR = 0.8 + Math.random() * 1.2;
+                const mat = Math.random() > 0.5 ? leafMat : darkLeafMat;
+                const canopy = new THREE.Mesh(new THREE.SphereGeometry(canopyR, 8, 6), mat);
+                canopy.position.y = trunkH + canopyR * 0.5;
+                canopy.scale.y = 0.7 + Math.random() * 0.3;
+                canopy.castShadow = true;
+                tree.add(canopy);
+
+                if (Math.random() > 0.4) {
+                    const sub = new THREE.Mesh(new THREE.SphereGeometry(canopyR * 0.6, 8, 6), mat);
+                    sub.position.set((Math.random() - 0.5) * canopyR, trunkH + canopyR * 0.2, (Math.random() - 0.5) * canopyR);
+                    sub.castShadow = true;
+                    tree.add(sub);
+                }
+
+                tree.position.set(tp.x, 0, tp.z);
+                scene.add(tree);
+            });
+        }
+
+        function buildWasps() {
+            wasps.forEach(w => { if(w.mesh) scene.remove(w.mesh); });
+            wasps = [];
+            for (let i = 0; i < 5; i++) {
+                const group = new THREE.Group();
+                
+                // Body
+                const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.0, 12, 1);
+                const bodyMat = new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8, roughness: 0.2});
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.rotation.x = Math.PI / 2; // lay flat, forward is +Z
+                body.castShadow = true;
+                group.add(body);
+                
+                // Eye / Drone Core
+                const eyeGeo = new THREE.SphereGeometry(0.4, 8, 8);
+                const eyeMat = new THREE.MeshStandardMaterial({color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.0});
+                const eye = new THREE.Mesh(eyeGeo, eyeMat);
+                eye.position.set(0, 0, 0.8); // Front of the body
+                group.add(eye);
+                
+                // Wings
+                const wingGeo = new THREE.PlaneGeometry(1.6, 0.6);
+                const wingMat = new THREE.MeshBasicMaterial({color: 0x88ccff, transparent: true, opacity: 0.6, side: THREE.DoubleSide});
+                
+                const wingLGrp = new THREE.Group();
+                const wingL = new THREE.Mesh(wingGeo, wingMat);
+                wingL.position.set(0.8, 0, 0); // Offset so pivot is at wing root
+                wingLGrp.add(wingL);
+                wingLGrp.position.set(0.5, 0.2, 0);
+                group.add(wingLGrp);
+                
+                const wingRGrp = new THREE.Group();
+                const wingR = new THREE.Mesh(wingGeo, wingMat);
+                wingR.position.set(-0.8, 0, 0);
+                wingRGrp.add(wingR);
+                wingRGrp.position.set(-0.5, 0.2, 0);
+                group.add(wingRGrp);
+                
+                // Vision Cone
+                const coneGeo = new THREE.CylinderGeometry(0.1, 10, 25, 16, 1, true);
+                coneGeo.translate(0, -12.5, 0);
+                coneGeo.rotateX(-Math.PI / 2); // Point forward (+Z)
+                const coneMat = new THREE.MeshBasicMaterial({color: 0x00ffff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending});
+                const visionCone = new THREE.Mesh(coneGeo, coneMat);
+                visionCone.position.set(0, 0, 1.0);
+                group.add(visionCone);
+                
+                // Laser Beam
+                const laserGeo = new THREE.CylinderGeometry(0.015, 0.015, 40, 8);
+                laserGeo.translate(0, 20, 0); 
+                laserGeo.rotateX(Math.PI / 2); // point forward (+Z)
+                const laserMat = new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending});
+                const laser = new THREE.Mesh(laserGeo, laserMat);
+                laser.position.set(0, 0, 1.0); 
+                laser.visible = false;
+                group.add(laser);
+                
+                group.position.set(
+                    (Math.random() - 0.5) * 60,
+                    6 + Math.random() * 6, // flight altitude
+                    (Math.random() - 0.5) * 60
+                );
+                
+                scene.add(group);
+                
+                wasps.push({
+                    mesh: group,
+                    eyeMat: eyeMat,
+                    coneMat: coneMat,
+                    laser: laser,
+                    wingL: wingLGrp,
+                    wingR: wingRGrp,
+                    alive: true,
+                    hp: 5,
+                    lean: 0,
+                    aggro: false,
+                    mode: 'patrol', // 'patrol', 'alert'
+                    waypoint: new THREE.Vector3((Math.random()-0.5)*80, 6 + Math.random()*6, (Math.random()-0.5)*80),
+                    cooldown: 0,
+                    dieTimer: 0
+                });
+            }
+        }
+
+        function spawnSparkImpact(pos, count=8, color=0xffdd44, yVelMult=1.0) {
+            for (let j = 0; j < count; j++) {
+                const sparkGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+                const sparkMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1.0 });
+                const spark = new THREE.Mesh(sparkGeo, sparkMat);
+                spark.position.copy(pos);
+                scene.add(spark);
+                targetPopEffects.push({
+                    mesh: spark,
+                    life: 0.2 + Math.random() * 0.3,
+                    v: new THREE.Vector3((Math.random()-0.5)*8, Math.random()*8*yVelMult, (Math.random()-0.5)*8)
+                });
+            }
+        }
+
+        function spawnWaspExplosion(pos) {
+            const ringGeo = new THREE.RingGeometry(0.1, 0.8, 16);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 1.0, side: THREE.DoubleSide });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.copy(pos);
+            ring.lookAt(camera.position);
+            scene.add(ring);
+            targetPopEffects.push({ mesh: ring, life: 0.5 });
+            
+            for (let j = 0; j < 12; j++) {
+                const sparkGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+                const sparkMat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0x444444 : 0x00ffff, transparent: true, opacity: 1.0 });
+                const spark = new THREE.Mesh(sparkGeo, sparkMat);
+                spark.position.copy(pos);
+                scene.add(spark);
+                targetPopEffects.push({
+                    mesh: spark,
+                    life: 0.5 + Math.random() * 0.5,
+                    v: new THREE.Vector3((Math.random()-0.5)*15, Math.random()*10, (Math.random()-0.5)*15)
+                });
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const t = clock.getElapsedTime();
+            
+            if (state.shootTime > 0) state.shootTime -= delta;
+
+            // WASP AI & Animation
+            wasps.forEach(w => {
+                if (!w.alive) {
+                    if (w.dieTimer > 0) {
+                        w.dieTimer -= delta;
+                        w.mesh.position.y -= 15 * delta;
+                        w.mesh.rotation.x += delta * 5;
+                        w.mesh.rotation.z += delta * 3;
+                        if (w.dieTimer <= 0 || w.mesh.position.y < getTerrainHeight(w.mesh.position.x, w.mesh.position.z)) {
+                            spawnWaspExplosion(w.mesh.position);
+                            // RESPAWN
+                            w.mesh.position.set((Math.random()-0.5)*80, 6 + Math.random()*6, (Math.random()-0.5)*80);
+                            w.mesh.rotation.set(0, 0, 0);
+                            w.lean = 0;
+                            w.hp = 5;
+                            w.alive = true;
+                            w.aggro = false;
+                            w.mode = 'patrol';
+                            w.dieTimer = 0;
+                            w.mesh.visible = true;
+                            w.coneMat.visible = true;
+                        }
+                    }
+                    return;
+                }
+                
+                if (state.enemiesPaused) return;
+                
+                // Wing flapping (faster when alert)
+                const flapSpeed = w.mode === 'alert' ? 50 : 30;
+                w.wingL.rotation.z = Math.sin(t * flapSpeed) * 0.6;
+                w.wingR.rotation.z = -Math.sin(t * flapSpeed) * 0.6;
+                
+                // Bobbing organically
+                w.mesh.position.y += Math.sin(t * 2 + w.waypoint.x) * delta;
+
+                // AI Logic
+                const distToPlayer = w.mesh.position.distanceTo(character.position);
+                const playerCenter = character.position.clone().add(new THREE.Vector3(0, 1, 0));
+                const dirToPlayer = playerCenter.clone().sub(w.mesh.position).normalize();
+                
+                // Get wasp forward vector (+Z is forward)
+                const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion);
+                const angleToPlayer = forward.angleTo(dirToPlayer);
+                
+                if (state.isDead) w.aggro = false; // drop aggro if player dies
+                
+                let seePlayer = false;
+                // Vision checks: Distance < 20 (closer), Angle < 0.3 rad (~17 deg)
+                if (distToPlayer < 20 && angleToPlayer < 0.3 && !state.isDead) { 
+                    seePlayer = true;
+                }
+                
+                // If they are already aggro, let them track the player out to 50 units
+                if (w.aggro && distToPlayer < 50 && !state.isDead) {
+                    seePlayer = true;
+                } else if (w.aggro && distToPlayer >= 50) {
+                    w.aggro = false; // Player escaped!
+                }
+                
+                if (seePlayer || w.aggro) {
+                    w.aggro = true; // Stay alert
+                    if (w.mode !== 'alert') playGunshot(); // Alert sound
+                    w.mode = 'alert';
+                    w.eyeMat.emissive.setHex(0xff0000);
+                    w.coneMat.color.setHex(0xff0000);
+                    w.eyeMat.color.setHex(0xff0000);
+                    w.laser.visible = true;
+                    w.coneMat.opacity = 0.05;
+                    
+                    // Smoothly rotate towards player (cancel any lean)
+                    w.lean += (0 - w.lean) * 5 * delta; 
+                    const targetRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), dirToPlayer);
+                    w.mesh.quaternion.slerp(targetRotation, 5 * delta);
+                    
+                    // Move towards player if further than 8 units
+                    if (distToPlayer > 8) {
+                        w.mesh.position.addScaledVector(forward, 6 * delta);
+                    }
+                    
+                    // Try to shoot
+                    w.cooldown -= delta;
+                    if (w.cooldown <= 0) {
+                        w.cooldown = 0.8; 
+                        playGunshot(); 
+                        const tGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.0);
+                        tGeo.rotateX(Math.PI/2);
+                        const tMesh = new THREE.Mesh(tGeo, new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.9}));
+                        
+                        // Fire from slightly forward
+                        const forwardAim = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion);
+                        const startPos = w.mesh.position.clone().addScaledVector(forwardAim, 1.2);
+                        tMesh.position.copy(startPos);
+                        
+                        // Add some inaccuracy
+                        const aimDir = dirToPlayer.clone();
+                        aimDir.x += (Math.random()-0.5)*0.08;
+                        aimDir.y += (Math.random()-0.5)*0.08;
+                        aimDir.z += (Math.random()-0.5)*0.08;
+                        aimDir.normalize();
+                        
+                        tMesh.lookAt(startPos.clone().add(aimDir)); 
+                        const vel = aimDir.multiplyScalar(45);
+                        scene.add(tMesh);
+                        state.tracers.push({ mesh: tMesh, v: vel, life: 2.0, isEnemy: true });
+                    }
+                } else {
+                    w.mode = 'patrol';
+                    w.eyeMat.emissive.setHex(0x00ffff);
+                    w.coneMat.color.setHex(0x00ffff);
+                    w.eyeMat.color.setHex(0x00ffff);
+                    w.laser.visible = false;
+                    w.coneMat.opacity = 0.1;
+                    
+                    const distToWaypoint = w.mesh.position.distanceTo(w.waypoint);
+                    if (distToWaypoint < 3.0) {
+                        w.waypoint.set((Math.random()-0.5)*80, 6 + Math.random()*6, (Math.random()-0.5)*80);
+                    }
+                    
+                    const dirToWay = w.waypoint.clone().sub(w.mesh.position).normalize();
+                    const angleDiff = forward.angleTo(dirToWay);
+                    const cross = new THREE.Vector3().crossVectors(forward, dirToWay);
+                    const turnDir = Math.sign(cross.y || 1);
+                    
+                    w.lean += ((angleDiff * turnDir * 1.5) - w.lean) * 3 * delta;
+                    
+                    const targetRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), dirToWay);
+                    targetRotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), -w.lean));
+                    w.mesh.quaternion.slerp(targetRotation, 2 * delta);
+                    
+                    w.mesh.position.addScaledVector(forward, Math.max(2, 6 - angleDiff*3) * delta); 
+                    w.cooldown = Math.max(0, w.cooldown - delta); 
+                }
+            });
+
+            // Pop effects
+            for (let i = targetPopEffects.length - 1; i >= 0; i--) {
+                const fx = targetPopEffects[i];
+                fx.life -= delta;
+                if (fx.life <= 0) {
+                    scene.remove(fx.mesh);
+                    fx.mesh.geometry.dispose();
+                    fx.mesh.material.dispose();
+                    targetPopEffects.splice(i, 1);
+                } else {
+                    if (fx.v) {
+                        fx.mesh.position.addScaledVector(fx.v, delta);
+                        fx.v.y -= 12 * delta;
+                    } else {
+                        fx.mesh.scale.addScalar(delta * 6);
+                    }
+                    fx.mesh.material.opacity = fx.life / 0.5;
+                }
+            }
+            
+            for (let i = state.tracers.length - 1; i >= 0; i--) {
+                const tr = state.tracers[i];
+                tr.life -= delta;
+                let hitAnything = false;
+                
+                // 1. Terrain hit check
+                if (tr.mesh.position.y <= getTerrainHeight(tr.mesh.position.x, tr.mesh.position.z) + 0.1) {
+                    spawnSparkImpact(tr.mesh.position, 6, 0x88aa88, 1.5); // dirt colored sparks
+                    hitAnything = true;
+                }
+
+                
+                // 3. Wasp hit check (only if not enemy tracer)
+                if (!hitAnything && !tr.isEnemy) {
+                    wasps.forEach(w => {
+                        if (!w.alive || hitAnything) return;
+                        if (tr.mesh.position.distanceTo(w.mesh.position) < 1.4) {
+                            hitAnything = true;
+                            w.hp--;
+                            w.aggro = true; // INSTANT AGGRO ON HIT
+                            if (w.hp <= 0) {
+                                w.alive = false;
+                                w.dieTimer = 2.0;
+                                w.coneMat.visible = false;
+                                spawnSparkImpact(tr.mesh.position, 12, 0xffaa00, 1.5);
+                            } else {
+                                w.eyeMat.emissive.setHex(0xffffff); 
+                                setTimeout(() => w.eyeMat.emissive.setHex(w.mode==='alert'?0xff0000:0x00ffff), 100);
+                                spawnSparkImpact(tr.mesh.position, 6, 0x00ffff, 1.0);
+                            }
+                        }
+                    });
+                }
+                
+                // 4. Player hit check (only if IS enemy tracer)
+                if (!hitAnything && tr.isEnemy && !state.isDead) {
+                    const dx = tr.mesh.position.x - character.position.x;
+                    const dz = tr.mesh.position.z - character.position.z;
+                    const dy = tr.mesh.position.y - character.position.y;
+                    // Cylinder collision Check: Radius 0.5, Height 2.0
+                    if (dx*dx + dz*dz < 0.25 && dy >= 0 && dy <= 2.0) {
+                        hitAnything = true;
+                        spawnSparkImpact(tr.mesh.position, 10, 0xff0000, 1.5);
+                        triggerDeath();
+                    }
+                }
+                
+                if (tr.life <= 0 || hitAnything) {
+                    if (hitAnything && tr.isMagic) {
+                        spawnSparkImpact(tr.mesh.position, 15, tr.magicType === 'fire' ? 0xff4400 : 0x00aaff, 2.5);
+                    }
+                    scene.remove(tr.mesh);
+                    if(tr.mesh.geometry) tr.mesh.geometry.dispose();
+                    if(tr.mesh.material) tr.mesh.material.dispose();
+                    state.tracers.splice(i, 1);
+                } else {
+                    tr.mesh.position.addScaledVector(tr.v, delta);
+                }
+            }
+
+            resetPose();
+
+            if (state.isDead) {
+                state.deadParts.forEach(dp => {
+                    if (dp.pos.y > 0.05) {
+                        dp.v.y -= 15 * delta;
+                        dp.pos.addScaledVector(dp.v, delta);
+                        const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(dp.r.x * delta, dp.r.y * delta, dp.r.z * delta));
+                        dp.quat.multiply(q);
+                        if (dp.pos.y <= 0.05) { dp.pos.y = 0.05; dp.v.set(0,0,0); dp.r.set(0,0,0); }
+                        dp.obj.position.copy(dp.pos);
+                        dp.obj.quaternion.copy(dp.quat);
+                    }
+                });
+                if (state.isControlMode) {
+                    const hotbar = document.getElementById('hotbar');
+                    if(hotbar) hotbar.style.opacity = '1';
+                    
+                    state.currentCamSide += (state.camSide - state.currentCamSide) * 10 * delta;
+
+                    const pelvisPos = state.deadParts[0].pos;
+                    const pivotOffset = new THREE.Vector3(0.6 * state.currentCamSide, 2.0, 0);
+                    pivotOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.camYaw);
+                    bodyParts.camRig.position.copy(pelvisPos).add(pivotOffset);
+                    bodyParts.camRig.rotation.set(state.camPitch, state.camYaw, 0, 'YXZ');
+                    
+                    const localOffset = new THREE.Vector3(0, 0, -3.5 * state.camZoom);
+                    const pivotCenter = pelvisPos.clone();
+                    pivotCenter.y += 1.0; 
+                    const worldPos = bodyParts.camRig.localToWorld(localOffset);
+                    if (worldPos.y < 0.3) worldPos.y = 0.3;
+                    
+                    camera.position.lerp(worldPos, 0.15);
+                    camera.lookAt(pivotCenter.x, pivotCenter.y, pivotCenter.z);
+                } else {
+                    const hotbar = document.getElementById('hotbar');
+                    if(hotbar) hotbar.style.opacity = '0';
+                    
+                    const targetPos = new THREE.Vector3(3.0 * state.camZoom, 1.5 + (state.camZoom - 1.0) * 0.5, 4.5 * state.camZoom);
+                    camera.position.lerp(targetPos, 0.1);
+                    camera.lookAt(0, 0.8, 0);
+                }
+                renderer.render(scene, camera);
+                return;
+            }
+
+            let currentAnim = state.anim;
+            if (state.isControlMode) {
+                const moveZ = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+                const moveX = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
+                const isMoving = Math.abs(moveZ) > 0 || Math.abs(moveX) > 0;
+                const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+
+                if (isMoving) {
+                    currentAnim = isSprinting ? 'run' : 'walk';
+                    const speed = (isSprinting ? 0.22 : 0.1) * state.legs;
+                    
+                    const direction = new THREE.Vector3(moveX, 0, moveZ).normalize();
+                    direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.camYaw);
+                    
+                    const targetYaw = Math.atan2(direction.x, direction.z);
+                    let diff = targetYaw - character.rotation.y;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    
+                    character.rotation.y += diff * 12 * delta;
+                    character.position.addScaledVector(direction, speed);
+                } else {
+                    currentAnim = 'idle';
+                    const isAttacking = (state.punchTime >= 0 || state.shootTime > 0 || state.magicTimeL > 0 || state.magicTimeR > 0 || state.spellTime >= 0);
+                    if (isAttacking) {
+                        let diff = state.camYaw - character.rotation.y;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        character.rotation.y += diff * 15 * delta;
+                    }
+                }
+
+                // Terrain following (applies whether moving or still)
+                if (typeof state.baseY === 'undefined') state.baseY = character.position.y;
+                const terrainY = getTerrainHeight(character.position.x, character.position.z);
+                // Smooth rise and fall
+                state.baseY += (terrainY - state.baseY) * 0.15;
+                if (Math.abs(state.baseY - terrainY) < 0.01) state.baseY = terrainY;
+                character.position.y = state.baseY;
+
+                // ARC RAIDERS STYLE CAMERA RIG (Over shoulder + Pitch)
+                const hotbar = document.getElementById('hotbar');
+                if(hotbar) hotbar.style.opacity = '1';
+                
+                state.currentCamSide += (state.camSide - state.currentCamSide) * 10 * delta;
+                
+                const pivotOffset = new THREE.Vector3(0.6 * state.currentCamSide, 2.0, 0);
+                pivotOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.camYaw);
+                bodyParts.camRig.position.copy(character.position).add(pivotOffset);
+                bodyParts.camRig.rotation.set(state.camPitch, state.camYaw, 0, 'YXZ');
+                
+                // -Z keeps camera behind the character (since +Z is forward movement direction)
+                const localOffset = new THREE.Vector3(0, 0, -3.5 * state.camZoom);
+                const worldPos = bodyParts.camRig.localToWorld(localOffset);
+                if (worldPos.y < 0.3) worldPos.y = 0.3;
+                camera.position.lerp(worldPos, 0.25);
+                
+                // +Z faces camera strictly outward
+                const lookTgt = bodyParts.camRig.localToWorld(new THREE.Vector3(0, 0, 100));
+                camera.lookAt(lookTgt);
+            } else {
+                const hotbar = document.getElementById('hotbar');
+                if(hotbar) hotbar.style.opacity = '0';
+                
+                const targetPos = new THREE.Vector3(3.0 * state.camZoom, 1.5 + (state.camZoom - 1.0) * 0.5, 4.5 * state.camZoom);
+                camera.position.lerp(targetPos, 0.1);
+                camera.lookAt(0, 0.8, 0);
+            }
+
+            // CROUCH LOGIC (IK - Feet stay at Y=0)
+            let thighRot = 0;
+            let calfRot = 0;
+            let pelvisZOffset = 0;
+            if (state.isCrouching) {
+                thighRot = -1.2; 
+                calfRot = 1.9;   
+                pelvisZOffset = -0.13; // Keep feet planted while hips drop
+                
+                bodyParts.legL.rotation.x = thighRot;
+                bodyParts.legR.rotation.x = thighRot;
+                bodyParts.legL.calf.rotation.x = calfRot;
+                bodyParts.legR.calf.rotation.x = calfRot;
+                
+                bodyParts.torso.rotation.x = 0.5; // Lean heavily forward (tactical stance)
+                bodyParts.head.rotation.x = -0.5; // Counter lean to keep eyes forward
+                
+                // Tactical ready arms: tight to the chest
+                bodyParts.armL.rotation.x = 0.1;
+                bodyParts.armR.rotation.x = 0.1;
+                bodyParts.armL.lower.rotation.x = -1.3; 
+                bodyParts.armR.lower.rotation.x = -1.3;
+                bodyParts.armL.rotation.z = 0.1;
+                bodyParts.armR.rotation.z = -0.1;
+            }
+
+            const legH = 0.45 * state.legs;
+            const footH = 0.09 * state.legs;
+            const currentPelvisY = legH * Math.cos(thighRot) + legH * Math.cos(thighRot + calfRot) + footH;
+            bodyParts.pelvis.position.y = currentPelvisY;
+            bodyParts.pelvis.position.z = pelvisZOffset;
+
+            if (state.jumpTime >= 0) {
+                state.jumpTime += delta * 2.5; 
+                const jt = state.jumpTime;
+                const jumpH = Math.sin(Math.min(jt, 1) * Math.PI) * 1.3;
+                character.position.y = (state.baseY || 0) + Math.max(0, jumpH);
+                bodyParts.legL.rotation.x = -0.4 * jumpH;
+                bodyParts.legR.rotation.x = -0.4 * jumpH;
+                if (jt >= 1.0) state.jumpTime = -1;
+            }
+
+            if (currentAnim === 'walk' || currentAnim === 'run') {
+                const speed = currentAnim === 'run' ? 14 : 8;
+                const amp = currentAnim === 'run' ? 0.9 : 0.5;
+                const phase = t * speed;
+                bodyParts.legL.rotation.x += Math.sin(phase) * amp;
+                bodyParts.legR.rotation.x += Math.sin(phase + Math.PI) * amp;
+                bodyParts.legL.calf.rotation.x += Math.max(0, Math.sin(phase - 1.2)) * amp * 2.2;
+                bodyParts.legR.calf.rotation.x += Math.max(0, Math.sin(phase + Math.PI - 1.2)) * amp * 2.2;
+                bodyParts.armL.rotation.x = Math.sin(phase + Math.PI) * amp;
+                bodyParts.armR.rotation.x = Math.sin(phase) * amp;
+                
+                if (state.jumpTime < 0) {
+                    const bobAmt = currentAnim === 'run' ? 0.12 : 0.05;
+                    bodyParts.pelvis.position.y += (Math.cos(phase * 2) * -0.5 + 0.5) * bobAmt;
+                }
+                // Torso now leans FORWARD because pivot is at bottom!
+                bodyParts.torso.rotation.x += currentAnim === 'run' ? 0.3 : 0.05;
+                bodyParts.torso.rotation.y = Math.sin(phase) * 0.15;
+            } 
+
+            // Flat feet
+            bodyParts.legL.foot.rotation.x = -(bodyParts.legL.rotation.x + bodyParts.legL.calf.rotation.x);
+            bodyParts.legR.foot.rotation.x = -(bodyParts.legR.rotation.x + bodyParts.legR.calf.rotation.x);
+            
+            const isAttacking = (state.punchTime >= 0 || currentAnim === 'punch');
+            if (isAttacking) {
+                const isAxe = (state.inventory === 2);
+                const pSpeed = isAxe ? 7 : 12; // Axe swings slower for heavy weight
+                const pPhase = (state.punchTime >= 0) ? state.punchTime * pSpeed : t * pSpeed;
+                if (state.punchTime >= 0) state.punchTime += delta;
+                const reach = Math.sin(pPhase) * 1.3;
+                if (Math.cos(pPhase) > 0.96 && state.punchTime < 0) state.punchSide = (Math.floor(t * 2) % 2 === 0) ? 1 : -1;
+                
+                if (isAxe) {
+                    // Overhead axe chop animation
+                    // pt goes 0→1 over one swing cycle
+                    const pt = (state.punchTime >= 0) ? Math.min(1.0, pPhase / Math.PI) : (pPhase % Math.PI) / Math.PI;
+
+                    // Right arm shoulder X rotation (negative = raise, positive = in front/down)
+                    let rx = 0;
+                    // Right arm elbow bend (negative = bend)
+                    let lowerX = -0.2;
+                    // Right arm shoulder Z (abduction)
+                    let ez = -0.15;
+                    // Left arm shoulder X (counterbalance)
+                    let lx = 0;
+                    // Torso Y twist (subtle weight shift)
+                    let ty = 0;
+                    // Torso X lean (forward lean during strike)
+                    let torsoLean = 0;
+                    
+                    if (pt < 0.30) {
+                        // --- WINDUP: Raise axe overhead ---
+                        const pct = pt / 0.30;
+                        const easeOut = 1 - (1 - pct) * (1 - pct); // ease-out for smooth lift
+                        rx = -2.6 * easeOut;            // Raise arm overhead (~150° up)
+                        lowerX = -0.2 - 1.6 * easeOut;  // Bend elbow, axe tips behind head
+                        ez = -0.15 - 0.15 * easeOut;     // Slight outward spread
+                        ty = -0.2 * easeOut;              // Slight torso wind-up twist
+                        torsoLean = -0.1 * easeOut;       // Lean back slightly
+                        lx = 0.3 * easeOut;               // Left arm balances forward
+                    } else if (pt < 0.38) {
+                        // --- HANG: Brief anticipation at apex ---
+                        rx = -2.6;
+                        lowerX = -1.8;
+                        ez = -0.3;
+                        ty = -0.2;
+                        torsoLean = -0.1;
+                        lx = 0.3;
+                    } else if (pt < 0.55) {
+                        // --- STRIKE: Fast downward chop ---
+                        const pct = (pt - 0.38) / 0.17;
+                        const easeIn = pct * pct * pct;   // Cubic ease-in for snappy acceleration
+                        rx = -2.6 + 3.5 * easeIn;         // Swing from overhead (-2.6) to in front (+0.9)
+                        lowerX = -1.8 + 1.6 * easeIn;     // Snap elbow straight
+                        ez = -0.3 + 0.15 * easeIn;        // Bring arm back in
+                        ty = -0.2 + 0.5 * easeIn;         // Torso twists into the strike
+                        torsoLean = -0.1 + 0.35 * easeIn; // Lean forward into chop
+                        lx = 0.3 - 0.8 * easeIn;          // Left arm whips back
+                    } else if (pt < 0.72) {
+                        // --- FOLLOW-THROUGH: Decelerate past target ---
+                        const pct = (pt - 0.55) / 0.17;
+                        const easeOut = pct * (2 - pct);   // Ease-out deceleration
+                        rx = 0.9 + 0.3 * easeOut;          // Slight overshoot past horizontal
+                        lowerX = -0.2 - 0.1 * easeOut;     // Slight re-bend
+                        ez = -0.15;
+                        ty = 0.3 - 0.1 * easeOut;          // Torso settles
+                        torsoLean = 0.25 - 0.05 * easeOut; // Still leaning forward
+                        lx = -0.5 + 0.2 * easeOut;         // Left arm relaxes back
+                    } else {
+                        // --- RECOVER: Smooth return to idle ---
+                        const pct = (pt - 0.72) / 0.28;
+                        const easeInOut = pct * pct * (3 - 2 * pct); // Smooth step
+                        rx = 1.2 * (1 - easeInOut);         // Return to ~0
+                        lowerX = -0.3 + 0.1 * easeInOut;    // Relax elbow
+                        ez = -0.15;
+                        ty = 0.2 * (1 - easeInOut);          // Untwist torso
+                        torsoLean = 0.2 * (1 - easeInOut);   // Stand back up
+                        lx = -0.3 * (1 - easeInOut);         // Left arm returns
+                    }
+                    
+                    bodyParts.armR.rotation.x = rx;
+                    bodyParts.armR.rotation.z = ez;
+                    bodyParts.armR.lower.rotation.x = lowerX;
+                    bodyParts.armL.rotation.x = lx;
+                    bodyParts.torso.rotation.y = ty;
+                    bodyParts.torso.rotation.x += torsoLean;
+                    
+                    if(pt >= 1.0 && state.punchTime >= 0) state.punchTime = -1;
+                } else {
+                    const arm = state.punchSide === 1 ? bodyParts.armR : bodyParts.armL;
+                    arm.rotation.x = -1.6 * Math.max(0, reach);
+                    bodyParts.torso.rotation.y = reach * 0.5 * state.punchSide;
+                }
+                if(state.punchTime * pSpeed > Math.PI) state.punchTime = -1;
+            }
+
+            if (currentAnim === 'idle' && state.punchTime < 0) {
+                const breath = Math.sin(t * 2);
+                bodyParts.torso.scale.y = state.height + breath * 0.012;
+                bodyParts.armL.rotation.z = 0.15 + breath * 0.02;
+                bodyParts.armR.rotation.z = -0.15 - breath * 0.02;
+            }
+            
+            if (state.magicTimeL > 0) state.magicTimeL -= delta;
+            if (state.magicTimeR > 0) state.magicTimeR -= delta;
+
+            if (bodyParts.auraL) {
+                const isMagic = state.inventory === 3 && state.isControlMode && !state.isDead;
+                bodyParts.auraL.visible = isMagic;
+                bodyParts.auraR.visible = isMagic;
+                if (isMagic) {
+                    const colL = state.magicLeft === 'fire' ? 0xff4400 : (state.magicLeft === 'arcane' ? 0xcc00ff : 0x00aaff);
+                    const colR = state.magicRight === 'fire' ? 0xff4400 : (state.magicRight === 'arcane' ? 0xcc00ff : 0x00aaff);
+                    bodyParts.auraL.material.color.setHex(colL);
+                    bodyParts.auraR.material.color.setHex(colR);
+                    
+                    const pulse = 1.0 + Math.sin(t * 10) * 0.2;
+                    bodyParts.auraL.scale.setScalar(pulse);
+                    bodyParts.auraR.scale.setScalar(pulse);
+                    bodyParts.auraL.rotation.x += delta * 2;
+                    bodyParts.auraL.rotation.y += delta * 3;
+                    bodyParts.auraR.rotation.x -= delta * 2;
+                    bodyParts.auraR.rotation.y -= delta * 3;
+                }
+            }
+            
+            // --- ARC RAIDERS UPPER BODY AIMING ---
+            let appliedTorsoPitch = 0;
+            if (state.isControlMode && !state.isDead && state.spellTime < 0) {
+                // Calculate difference between camera look direction and character facing direction
+                let yawDiff = state.camYaw - character.rotation.y;
+                while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+                while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+                
+                // Limit twist to prevent breaking spine
+                const maxTwist = Math.PI * 0.5; 
+                let twist = Math.max(-maxTwist, Math.min(maxTwist, yawDiff));
+                
+                // When aiming/attacking, lean into it more
+                const isAiming = (state.inventory === 1 || state.inventory === 3);
+                const twistWeight = isAiming ? 0.7 : 0.4;
+                
+                bodyParts.torso.rotation.y += twist * twistWeight;
+                bodyParts.head.rotation.y = twist * (1.0 - twistWeight);
+                
+                appliedTorsoPitch = state.camPitch * (isAiming ? 0.4 : 0.2);
+                bodyParts.torso.rotation.x += appliedTorsoPitch;
+                bodyParts.head.rotation.x += state.camPitch * 0.4;
+            }
+            
+            // Aiming Inventory Overrides
+            if (state.isControlMode && state.inventory !== 0 && !isAttacking && state.spellTime < 0) {
+                if (state.inventory === 1) { // Gun
+                    bodyParts.armR.rotation.x = -Math.PI/2 + (state.camPitch - appliedTorsoPitch);
+                    if (state.shootTime > 0) {
+                        bodyParts.armR.rotation.x -= Math.sin((state.shootTime / 0.15) * Math.PI) * 0.4;
+                    }
+                    bodyParts.armR.rotation.z = -0.05;
+                    bodyParts.armR.rotation.y = 0.2;
+                    
+                    bodyParts.armL.rotation.x = -0.8 + (state.camPitch - appliedTorsoPitch); // Lower, tucked support hand
+                    bodyParts.armL.lower.rotation.x = -0.9;  // Elbow bent, hand near chest
+                    bodyParts.armL.rotation.z = 0.25;  // Kept close to body
+                    bodyParts.armL.rotation.y = -0.1;
+                } else if (state.inventory === 2) { // Axe
+                    bodyParts.armR.rotation.x = -0.2;
+                    bodyParts.armR.rotation.z = -0.1;
+                } else if (state.inventory === 3) { // Magic Mode
+                    bodyParts.armL.rotation.x = -Math.PI/2 + (state.camPitch - appliedTorsoPitch);
+                    bodyParts.armR.rotation.x = -Math.PI/2 + (state.camPitch - appliedTorsoPitch);
+                    
+                    if (state.magicTimeL > 0) bodyParts.armL.rotation.x -= Math.sin((state.magicTimeL / 0.25) * Math.PI) * 0.4;
+                    if (state.magicTimeR > 0) bodyParts.armR.rotation.x -= Math.sin((state.magicTimeR / 0.25) * Math.PI) * 0.4;
+                    
+                    bodyParts.armL.rotation.y = -0.2;
+                    bodyParts.armR.rotation.y = 0.2;
+                    bodyParts.armL.rotation.z = 0.15;
+                    bodyParts.armR.rotation.z = -0.15;
+                    bodyParts.armL.lower.rotation.x = -0.3;
+                    bodyParts.armR.lower.rotation.x = -0.3;
+                }
+            }
+
+            if (state.spellTime >= 0) {
+                state.spellTime += delta;
+                const st = state.spellTime / 1.5; 
+                if (st > 1) {
+                    state.spellTime = -1;
+                } else {
+                    const raise = Math.sin(st * Math.PI); 
+                    bodyParts.armL.rotation.x = -2.8 * raise;
+                    bodyParts.armR.rotation.x = -2.8 * raise;
+                    bodyParts.head.rotation.x = -0.4 * raise;
+                    const tremble = Math.max(0, Math.sin(st * Math.PI)) * Math.sin(t * 40) * 0.08;
+                    bodyParts.armL.rotation.z += tremble + 0.5 * raise;
+                    bodyParts.armR.rotation.z -= tremble + 0.5 * raise;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
