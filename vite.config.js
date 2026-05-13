@@ -14,6 +14,7 @@ export default defineConfig({
         modularMan: resolve(__dirname, 'src/characters/ModularMan/index.html'),
         projectiles: resolve(__dirname, 'src/effects/Projectiles/index.html'),
         spells: resolve(__dirname, 'src/effects/Spells/spells.html'),
+        fireParticles: resolve(__dirname, 'src/effects/FireParticles/index.html'),
         fogMachine: resolve(__dirname, 'src/environments/FogMachine/index.html'),
         fogWater: resolve(__dirname, 'src/environments/FogWater/index.html'),
         terrainEditor: resolve(__dirname, 'src/environments/TerrainEditor/index.html'),
